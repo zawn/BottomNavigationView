@@ -20,6 +20,9 @@ import com.saicmotor.sc.myapplication.databinding.FragmentNotificationsBinding;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 public class NotificationsFragment extends Fragment {
     private static final String TAG = "NotificationsFragment";
     private static final boolean DEBUG = true;
@@ -28,9 +31,17 @@ public class NotificationsFragment extends Fragment {
     private NotificationsViewModel notificationsViewModel;
     private FragmentNotificationsBinding binding;
 
+    static final SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd HH:mm:ss.SSS");
+    private String hexString;
+    private String format;
+
+    public NotificationsFragment() {
+        Log.d(TAG, "NotificationsFragment() called");
+    }
+
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onCreateView() called with: inflater = [" + inflater + "], container = [" + container + "], savedInstanceState = [" + savedInstanceState + "]");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onCreateView() called with: inflater = [" + inflater + "], container = [" + container + "], savedInstanceState = [" + savedInstanceState + "]");
         notificationsViewModel =
                 new ViewModelProvider(this).get(NotificationsViewModel.class);
 
@@ -41,9 +52,20 @@ public class NotificationsFragment extends Fragment {
         notificationsViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(@Nullable String s) {
-                textView.setText(s);
+                textView.setText(s + " " + Integer.toHexString(System.identityHashCode(NotificationsFragment.this)));
             }
         });
+        if (savedInstanceState == null) {
+            hexString = Integer.toHexString(System.identityHashCode(this));
+            format = sdf.format(new Date());
+        }
+
+        if (hexString == null) {
+            hexString = savedInstanceState.getString("hexString");
+            format = savedInstanceState.getString("format");
+        }
+
+        binding.state.setText("Create at " + format + "\n instance id " + hexString);
         return root;
     }
 
@@ -56,108 +78,110 @@ public class NotificationsFragment extends Fragment {
     @Override
     public void onHiddenChanged(boolean hidden) {
         super.onHiddenChanged(hidden);
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onHiddenChanged() called with: hidden = [" + hidden + "]");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onHiddenChanged() called with: hidden = [" + hidden + "]");
     }
 
     @Override
     public void onAttachFragment(@NonNull @NotNull Fragment childFragment) {
         super.onAttachFragment(childFragment);
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onAttachFragment() called with: childFragment = [" + childFragment + "]");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onAttachFragment() called with: childFragment = [" + childFragment + "]");
     }
 
     @Override
     public void onAttach(@NonNull @NotNull Context context) {
         super.onAttach(context);
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onAttach() called with: context = [" + context + "]");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onAttach() called with: context = [" + context + "]");
     }
 
     @Override
     public void onAttach(@NonNull @NotNull Activity activity) {
         super.onAttach(activity);
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onAttach() called with: activity = [" + activity + "]");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onAttach() called with: activity = [" + activity + "]");
     }
 
     @Override
     public void onCreate(@Nullable @org.jetbrains.annotations.Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onCreate() called with: savedInstanceState = [" + savedInstanceState + "]");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onCreate() called with: savedInstanceState = [" + savedInstanceState + "]");
     }
 
     @Override
     public void onViewCreated(@NonNull @NotNull View view, @Nullable @org.jetbrains.annotations.Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onViewCreated() called with: view = [" + view + "], savedInstanceState = [" + savedInstanceState + "]");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onViewCreated() called with: view = [" + view + "], savedInstanceState = [" + savedInstanceState + "]");
     }
 
     @Override
     public void onActivityCreated(@Nullable @org.jetbrains.annotations.Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onActivityCreated() called with: savedInstanceState = [" + savedInstanceState + "]");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onActivityCreated() called with: savedInstanceState = [" + savedInstanceState + "]");
     }
 
     @Override
     public void onViewStateRestored(@Nullable @org.jetbrains.annotations.Nullable Bundle savedInstanceState) {
         super.onViewStateRestored(savedInstanceState);
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onViewStateRestored() called with: savedInstanceState = [" + savedInstanceState + "]");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onViewStateRestored() called with: savedInstanceState = [" + savedInstanceState + "]");
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onStart() called");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onStart() called");
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onResume() called");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onResume() called");
     }
 
     @Override
     public void onSaveInstanceState(@NonNull @NotNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onSaveInstanceState() called with: outState = [" + outState + "]");
+        outState.putString("hexString", hexString);
+        outState.putString("format", format);
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onSaveInstanceState() called with: outState = [" + outState + "]");
     }
 
     @Override
     public void onConfigurationChanged(@NonNull @NotNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onConfigurationChanged() called with: newConfig = [" + newConfig + "]");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onConfigurationChanged() called with: newConfig = [" + newConfig + "]");
     }
 
     @Override
     public void onPrimaryNavigationFragmentChanged(boolean isPrimaryNavigationFragment) {
         super.onPrimaryNavigationFragmentChanged(isPrimaryNavigationFragment);
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onPrimaryNavigationFragmentChanged() called with: isPrimaryNavigationFragment = [" + isPrimaryNavigationFragment + "]");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onPrimaryNavigationFragmentChanged() called with: isPrimaryNavigationFragment = [" + isPrimaryNavigationFragment + "]");
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onPause() called");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onPause() called");
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onStop() called");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onStop() called");
     }
 
     @Override
     public void onLowMemory() {
         super.onLowMemory();
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onLowMemory() called");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onLowMemory() called");
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onDestroy() called");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onDestroy() called");
     }
 
     @Override
     public void onDetach() {
         super.onDetach();
-        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) +" "+ "onDetach() called");
+        Log.v(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onDetach() called");
     }
 }

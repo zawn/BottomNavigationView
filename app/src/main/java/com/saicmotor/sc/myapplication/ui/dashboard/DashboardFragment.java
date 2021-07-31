@@ -20,6 +20,9 @@ import com.saicmotor.sc.myapplication.databinding.FragmentDashboardBinding;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 public class DashboardFragment extends Fragment {
     private static final String TAG = "DashboardFragment";
     private static final boolean DEBUG = true;
@@ -27,6 +30,10 @@ public class DashboardFragment extends Fragment {
 
     private DashboardViewModel dashboardViewModel;
     private FragmentDashboardBinding binding;
+    static final SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd HH:mm:ss.SSS");
+
+    private String hexString;
+    private String format;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -41,9 +48,20 @@ public class DashboardFragment extends Fragment {
         dashboardViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(@Nullable String s) {
-                textView.setText(s);
+                textView.setText(s + " " + Integer.toHexString(System.identityHashCode(DashboardFragment.this)));
             }
         });
+        if (savedInstanceState == null) {
+            hexString = Integer.toHexString(System.identityHashCode(this));
+            format = sdf.format(new Date());
+        }
+
+        if (hexString == null) {
+            hexString = savedInstanceState.getString("hexString");
+            format = savedInstanceState.getString("format");
+        }
+
+        binding.state.setText("Create at " + format + "\n instance id " + hexString);
         return root;
     }
 
@@ -116,6 +134,8 @@ public class DashboardFragment extends Fragment {
     @Override
     public void onSaveInstanceState(@NonNull @NotNull Bundle outState) {
         super.onSaveInstanceState(outState);
+        outState.putString("hexString", hexString);
+        outState.putString("format", format);
         Log.i(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onSaveInstanceState() called with: outState = [" + outState + "]");
     }
 
