@@ -97,82 +97,31 @@ public class MainActivity extends AppCompatActivity {
 
     public boolean onNavDestinationSelected(@NonNull MenuItem item,
                                             @NonNull NavController navController) {
-        @SuppressLint("RestrictedApi")
-        Deque<NavBackStackEntry> backStack = navController.getBackStack();
-        int itemId = item.getItemId();
-        NavBackStackEntry backStackEntry = getBackStackEntry(backStack, itemId);
-        if (backStackEntry == null) {
-            NavOptions.Builder builder = new NavOptions.Builder()
-                    .setLaunchSingleTop(true);
-            if (navController.getCurrentDestination().getParent().findNode(item.getItemId())
-                    instanceof ActivityNavigator.Destination) {
-                builder.setEnterAnim(R.anim.nav_default_enter_anim)
-                        .setExitAnim(R.anim.nav_default_exit_anim)
-                        .setPopEnterAnim(R.anim.nav_default_pop_enter_anim)
-                        .setPopExitAnim(R.anim.nav_default_pop_exit_anim);
+        NavOptions.Builder builder = new NavOptions.Builder()
+                .setLaunchSingleTop(true);
+        if (navController.getCurrentDestination().getParent().findNode(item.getItemId())
+                instanceof ActivityNavigator.Destination) {
+            builder.setEnterAnim(R.anim.nav_default_enter_anim)
+                    .setExitAnim(R.anim.nav_default_exit_anim)
+                    .setPopEnterAnim(R.anim.nav_default_pop_enter_anim)
+                    .setPopExitAnim(R.anim.nav_default_pop_exit_anim);
 
-            } else {
-                builder.setEnterAnim(R.animator.nav_default_enter_anim)
-                        .setExitAnim(R.animator.nav_default_exit_anim)
-                        .setPopEnterAnim(R.animator.nav_default_pop_enter_anim)
-                        .setPopExitAnim(R.animator.nav_default_pop_exit_anim);
-            }
-//        if ((item.getOrder() & Menu.CATEGORY_SECONDARY) == 0) {
-//            builder.setPopUpTo(findStartDestination(navController.getGraph()).getId(), false);
-//        }
-            NavOptions options = builder.setLaunchSingleTop(true).build();
-            try {
-                //TODO provide proper API instead of using Exceptions as Control-Flow.
-                navController.navigate(item.getItemId(), null, options);
-                return true;
-            } catch (IllegalArgumentException e) {
-                return false;
-            }
         } else {
-            // TODO
-            int id = backStackEntry.getDestination().getId();
-            String idString = String.valueOf(id);
-
-            NavBackStackEntry last = backStack.getLast();
-            if (backStackEntry.equals(last)) {
-                navController.popBackStack(item.getItemId(), false);
-            } else {
-                FragmentManager fragmentManager = getSupportFragmentManager();
-                List<Fragment> fragments = fragmentManager.getFragments();
-                for (Fragment fragment : fragments) {
-                    if (fragment instanceof NavHostFragment) {
-                        Log.d(TAG, fragment.getTag() + fragment.toString());
-                        NavHostFragment hostFragment = (NavHostFragment) fragment;
-                        NavigatorProvider navigatorProvider = navController.getNavigatorProvider();
-                        Navigator<?> navigator = navigatorProvider.getNavigator(backStackEntry.getDestination().getNavigatorName());
-                        if (navigator instanceof FragmentNavigator) {
-                            FragmentNavigator fragmentNavigator = (FragmentNavigator) navigator;
-                            ArrayDeque<Integer> fragmentBackstack = getFragmentBackstack(fragmentNavigator);
-                            int size = fragmentBackstack.size();
-                            Log.d(TAG, "onNavDestinationSelected() called with: item = [" + item + "], navController = [" + navController + "]");
-                        }
-                        FragmentManager childFragmentManager = hostFragment.getChildFragmentManager();
-                        List<Fragment> fragments1 = childFragmentManager.getFragments();
-                        Log.d(TAG, "onNavDestinationSelected() called with: item = [" + item + "], navController = [" + navController + "]");
-                        int backStackEntryCount = childFragmentManager.getBackStackEntryCount();
-                        for (int i = 0; i < backStackEntryCount; i++) {
-                            FragmentManager.BackStackEntry backStackRecord = childFragmentManager.getBackStackEntryAt(i);
-                            String name = backStackRecord.getName();
-                            String s = "-" + backStackEntry.getDestination().getId();
-                            if (name.contains(s)) {
-                                childFragmentManager.popBackStack(name, 0);
-                                Log.d(TAG, "onNavDestinationSelected() called with: item = [" + item + "], navController = [" + navController + "]");
-                            } else {
-
-                            }
-                        }
-                    }
-                }
-//                backStack.remove(backStackEntry);
-//                backStack.add(backStackEntry);
-//                navController.popBackStack(item.getItemId(), false);
-            }
+            builder.setEnterAnim(R.animator.nav_default_enter_anim)
+                    .setExitAnim(R.animator.nav_default_exit_anim)
+                    .setPopEnterAnim(R.animator.nav_default_pop_enter_anim)
+                    .setPopExitAnim(R.animator.nav_default_pop_exit_anim);
+        }
+        if ((item.getOrder() & Menu.CATEGORY_SECONDARY) == 0) {
+            builder.setPopUpTo(findStartDestination(navController.getGraph()).getId(), false);
+        }
+        NavOptions options = builder.build();
+        try {
+            //TODO provide proper API instead of using Exceptions as Control-Flow.
+            navController.navigate(item.getItemId(), null, options);
             return true;
+        } catch (IllegalArgumentException e) {
+            return false;
         }
     }
 
