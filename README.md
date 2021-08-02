@@ -1,0 +1,8 @@
+# BottomNavigationView
+Fragment instance reuse for BottomNavigationView
+
+BottomNavigationView无法复用之前的fragemnt实例,原因分析:
+
+FragmentNavigator是基于FragmentManager返回堆栈实现的,实际上FragmentNavigator也可以实现实例复用,但是FragmentManager返回堆栈无法修改,在BottomNavigationView切换页面的时候也就无法操作
+返回堆栈达到实例复用,
+
