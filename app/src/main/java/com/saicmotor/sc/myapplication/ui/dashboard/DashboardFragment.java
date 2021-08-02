@@ -48,7 +48,7 @@ public class DashboardFragment extends Fragment {
         binding = FragmentDashboardBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
-        final TextView textView = binding.textDashboard;
+        final TextView textView = binding.text;
         dashboardViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(@Nullable String s) {
@@ -65,7 +65,7 @@ public class DashboardFragment extends Fragment {
             format = sdf.format(new Date());
         }
 
-        binding.state.setText("Create at " + format + "\n instance id " + hexString);
+        binding.state.setText("Create at " + format + "\n state " + hexString);
         return root;
     }
 

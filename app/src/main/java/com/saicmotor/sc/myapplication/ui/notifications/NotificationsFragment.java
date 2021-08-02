@@ -48,7 +48,7 @@ public class NotificationsFragment extends Fragment {
         binding = FragmentNotificationsBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
-        final TextView textView = binding.textNotifications;
+        final TextView textView = binding.text;
         notificationsViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(@Nullable String s) {
@@ -65,7 +65,7 @@ public class NotificationsFragment extends Fragment {
             format = sdf.format(new Date());
         }
 
-        binding.state.setText("Create at " + format + "\n instance id " + hexString);
+        binding.state.setText("Create at " + format + "\n state " + hexString);
         return root;
     }
 

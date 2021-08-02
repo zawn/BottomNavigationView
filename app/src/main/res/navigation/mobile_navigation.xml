@@ -5,19 +5,19 @@
     android:id="@+id/mobile_navigation"
     app:startDestination="@+id/navigation_home">
 
-    <fragment_tab
+    <fragment
         android:id="@+id/navigation_home"
         android:name="com.saicmotor.sc.myapplication.ui.home.HomeFragment"
         android:label="@string/title_home"
         tools:layout="@layout/fragment_home" />
 
-    <fragment_tab
+    <fragment
         android:id="@+id/navigation_dashboard"
         android:name="com.saicmotor.sc.myapplication.ui.dashboard.DashboardFragment"
         android:label="@string/title_dashboard"
         tools:layout="@layout/fragment_dashboard" />
 
-    <fragment_tab
+    <fragment
         android:id="@+id/navigation_notifications"
         android:name="com.saicmotor.sc.myapplication.ui.notifications.NotificationsFragment"
         android:label="@string/title_notifications"
