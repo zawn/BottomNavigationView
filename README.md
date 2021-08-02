@@ -2,6 +2,8 @@
 
 Fragment instance reuse for BottomNavigationView
 
+BottomNavigationView fragment实例复用
+
 ## Android Studio生成的Demo效果演示
 
 以下为按照Android Studio生成的Demo使用的效果,可以看到多次点击Home所在的tab标签,重复创建了多个home fragment的实例, 当然重复点击任意个tab标签都会重新创建实例, 演示的最后为使用返回键返回的效果,可以发现从home(996a089)切换到了其他标签页,在使用返回键返回,可以回到之前的home(996a089),也就是说其实home(996a089)的实例在离开当前标签页的时候并未销毁.
