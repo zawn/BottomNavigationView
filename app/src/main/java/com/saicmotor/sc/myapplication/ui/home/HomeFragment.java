@@ -49,7 +49,7 @@ public class HomeFragment extends Fragment {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
-        final TextView textView = binding.textHome;
+        final TextView textView = binding.text;
         homeViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(@Nullable String s) {
@@ -67,7 +67,7 @@ public class HomeFragment extends Fragment {
             format = sdf.format(new Date());
         }
 
-        binding.state.setText("Create at " + format + "\n instance id " + hexString);
+        binding.state.setText("Create at " + format + "\n state " + hexString);
         return root;
     }
 

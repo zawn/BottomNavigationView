@@ -8,13 +8,10 @@ import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.navigation.NavBackStackEntry;
 import androidx.navigation.NavController;
 import androidx.navigation.NavDestination;
-import androidx.navigation.NavGraph;
 import androidx.navigation.NavOptions;
 import androidx.navigation.Navigation;
-import androidx.navigation.fragment.FragmentNavigator;
 import androidx.navigation.fragment.NavHostFragment;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -22,10 +19,6 @@ import com.saicmotor.sc.myapplication.databinding.ActivityMainBinding;
 import com.saicmotor.sc.myapplication.ui.FragmentTabNavigator;
 
 import java.lang.ref.WeakReference;
-import java.lang.reflect.Field;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.Iterator;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
@@ -82,42 +75,8 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
-    public static NavBackStackEntry getBackStackEntry(Deque<NavBackStackEntry> backStack, @IdRes int destinationId) {
-        NavBackStackEntry lastFromBackStack = null;
-        Iterator<NavBackStackEntry> iterator = backStack.descendingIterator();
-        while (iterator.hasNext()) {
-            NavBackStackEntry entry = iterator.next();
-            NavDestination destination = entry.getDestination();
-            if (destination.getId() == destinationId) {
-                lastFromBackStack = entry;
-                break;
-            }
-        }
-        return lastFromBackStack;
-    }
-
     public boolean onNavDestinationSelected(@NonNull MenuItem item,
                                             @NonNull NavController navController) {
-//        NavOptions.Builder builder = new NavOptions.Builder()
-//                .setLaunchSingleTop(true);
-//        if (navController.getCurrentDestination().getParent().findNode(item.getItemId())
-//                instanceof ActivityNavigator.Destination) {
-//            builder.setEnterAnim(R.anim.nav_default_enter_anim)
-//                    .setExitAnim(R.anim.nav_default_exit_anim)
-//                    .setPopEnterAnim(R.anim.nav_default_pop_enter_anim)
-//                    .setPopExitAnim(R.anim.nav_default_pop_exit_anim);
-//
-//        } else {
-//            builder.setEnterAnim(R.animator.nav_default_enter_anim)
-//                    .setExitAnim(R.animator.nav_default_exit_anim)
-//                    .setPopEnterAnim(R.animator.nav_default_pop_enter_anim)
-//                    .setPopExitAnim(R.animator.nav_default_pop_exit_anim);
-//        }
-//        if ((item.getOrder() & Menu.CATEGORY_SECONDARY) == 0) {
-//            builder.setPopUpTo(findStartDestination(navController.getGraph()).getId(), false);
-//        }
-
-
         NavOptions options = new NavOptions.Builder().build();
         try {
             //TODO provide proper API instead of using Exceptions as Control-Flow.
@@ -127,17 +86,6 @@ public class MainActivity extends AppCompatActivity {
             return true;
         } catch (IllegalArgumentException e) {
             return false;
-        }
-    }
-
-    private ArrayDeque<Integer> getFragmentBackstack(FragmentNavigator fragmentNavigator) {
-        try {
-            Field mBackStack = FragmentNavigator.class.getDeclaredField("mBackStack");
-            mBackStack.setAccessible(true);
-            ArrayDeque<Integer> o = (ArrayDeque<Integer>) mBackStack.get(fragmentNavigator);
-            return o;
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -155,19 +103,4 @@ public class MainActivity extends AppCompatActivity {
         }
         return currentDestination.getId() == destId;
     }
-
-    /**
-     * Finds the actual start destination of the graph, handling cases where the graph's starting
-     * destination is itself a NavGraph.
-     */
-    @SuppressWarnings("WeakerAccess") /* synthetic access */
-    static NavDestination findStartDestination(@NonNull NavGraph graph) {
-        NavDestination startDestination = graph;
-        while (startDestination instanceof NavGraph) {
-            NavGraph parent = (NavGraph) startDestination;
-            startDestination = parent.findNode(parent.getStartDestination());
-        }
-        return startDestination;
-    }
-
 }
