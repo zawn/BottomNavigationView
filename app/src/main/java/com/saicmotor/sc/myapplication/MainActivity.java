@@ -1,8 +1,6 @@
 package com.saicmotor.sc.myapplication;
 
-import android.annotation.SuppressLint;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
@@ -10,29 +8,24 @@ import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
-import androidx.navigation.ActivityNavigator;
 import androidx.navigation.NavBackStackEntry;
 import androidx.navigation.NavController;
 import androidx.navigation.NavDestination;
 import androidx.navigation.NavGraph;
 import androidx.navigation.NavOptions;
 import androidx.navigation.Navigation;
-import androidx.navigation.Navigator;
-import androidx.navigation.NavigatorProvider;
 import androidx.navigation.fragment.FragmentNavigator;
 import androidx.navigation.fragment.NavHostFragment;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.saicmotor.sc.myapplication.databinding.ActivityMainBinding;
+import com.saicmotor.sc.myapplication.ui.FragmentTabNavigator;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
-import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
@@ -50,6 +43,14 @@ public class MainActivity extends AppCompatActivity {
 
 
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_activity_main);
+        NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment_activity_main);
+        FragmentTabNavigator navigator = new FragmentTabNavigator(
+                this, navHostFragment.getChildFragmentManager(), R.id.nav_host_fragment_activity_main);
+        navController.getNavigatorProvider().addNavigator(navigator);
+        Bundle startDestinationArgs = new Bundle();
+        startDestinationArgs.putBoolean(FragmentTabNavigator.FLAG_FRAGMENT_SINGLETON, true);
+        navController.setGraph(R.navigation.mobile_navigation, startDestinationArgs);
+
         BottomNavigationView bottomNavigationView = binding.navView;
         bottomNavigationView.setOnNavigationItemSelectedListener(
                 new BottomNavigationView.OnNavigationItemSelectedListener() {
@@ -97,28 +98,32 @@ public class MainActivity extends AppCompatActivity {
 
     public boolean onNavDestinationSelected(@NonNull MenuItem item,
                                             @NonNull NavController navController) {
-        NavOptions.Builder builder = new NavOptions.Builder()
-                .setLaunchSingleTop(true);
-        if (navController.getCurrentDestination().getParent().findNode(item.getItemId())
-                instanceof ActivityNavigator.Destination) {
-            builder.setEnterAnim(R.anim.nav_default_enter_anim)
-                    .setExitAnim(R.anim.nav_default_exit_anim)
-                    .setPopEnterAnim(R.anim.nav_default_pop_enter_anim)
-                    .setPopExitAnim(R.anim.nav_default_pop_exit_anim);
+//        NavOptions.Builder builder = new NavOptions.Builder()
+//                .setLaunchSingleTop(true);
+//        if (navController.getCurrentDestination().getParent().findNode(item.getItemId())
+//                instanceof ActivityNavigator.Destination) {
+//            builder.setEnterAnim(R.anim.nav_default_enter_anim)
+//                    .setExitAnim(R.anim.nav_default_exit_anim)
+//                    .setPopEnterAnim(R.anim.nav_default_pop_enter_anim)
+//                    .setPopExitAnim(R.anim.nav_default_pop_exit_anim);
+//
+//        } else {
+//            builder.setEnterAnim(R.animator.nav_default_enter_anim)
+//                    .setExitAnim(R.animator.nav_default_exit_anim)
+//                    .setPopEnterAnim(R.animator.nav_default_pop_enter_anim)
+//                    .setPopExitAnim(R.animator.nav_default_pop_exit_anim);
+//        }
+//        if ((item.getOrder() & Menu.CATEGORY_SECONDARY) == 0) {
+//            builder.setPopUpTo(findStartDestination(navController.getGraph()).getId(), false);
+//        }
 
-        } else {
-            builder.setEnterAnim(R.animator.nav_default_enter_anim)
-                    .setExitAnim(R.animator.nav_default_exit_anim)
-                    .setPopEnterAnim(R.animator.nav_default_pop_enter_anim)
-                    .setPopExitAnim(R.animator.nav_default_pop_exit_anim);
-        }
-        if ((item.getOrder() & Menu.CATEGORY_SECONDARY) == 0) {
-            builder.setPopUpTo(findStartDestination(navController.getGraph()).getId(), false);
-        }
-        NavOptions options = builder.build();
+
+        NavOptions options = new NavOptions.Builder().build();
         try {
             //TODO provide proper API instead of using Exceptions as Control-Flow.
-            navController.navigate(item.getItemId(), null, options);
+            Bundle startDestinationArgs = new Bundle();
+            startDestinationArgs.putBoolean(FragmentTabNavigator.FLAG_FRAGMENT_SINGLETON, true);
+            navController.navigate(item.getItemId(), startDestinationArgs, options);
             return true;
         } catch (IllegalArgumentException e) {
             return false;

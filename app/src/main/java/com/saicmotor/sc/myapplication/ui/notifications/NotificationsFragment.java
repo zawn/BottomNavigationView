@@ -55,14 +55,14 @@ public class NotificationsFragment extends Fragment {
                 textView.setText(s + " " + Integer.toHexString(System.identityHashCode(NotificationsFragment.this)));
             }
         });
-        if (savedInstanceState == null) {
-            hexString = Integer.toHexString(System.identityHashCode(this));
-            format = sdf.format(new Date());
+        if (savedInstanceState != null) {
+            hexString = savedInstanceState.getString("hexString");
+            format = savedInstanceState.getString("format");
         }
 
         if (hexString == null) {
-            hexString = savedInstanceState.getString("hexString");
-            format = savedInstanceState.getString("format");
+            hexString = Integer.toHexString(System.identityHashCode(this));
+            format = sdf.format(new Date());
         }
 
         binding.state.setText("Create at " + format + "\n instance id " + hexString);

@@ -20,26 +20,40 @@ import androidx.navigation.fragment.FragmentNavigator;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.util.ArrayDeque;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * 该实现仅适用于和{@link BottomNavigationView}配合使用的情况下，复用之前实例.
+ *
+ * 该实现仅适用于和{@link BottomNavigationView}配合使用的情况下，复用之前实例，类似与{@link android.app.Activity}
+ * 的{@link android.content.Intent#FLAG_ACTIVITY_SINGLE_TOP}与{@link android.content.Intent#FLAG_ACTIVITY_CLEAR_TOP}
+ * 组合使用，或者Activity的{@code  android:launchMode="singleInstance"}效果
+ * 注意在在使用的时候请在对应的fragment的启动{@link Bundle}中加入{@link #FLAG_FRAGMENT_SINGLETON}并设置为true，对于没有添加
+ * 该设置的fragment，处于行为保持与{@link FragmentNavigator}一致。
  * <p>
  * 注意该实现没有依赖{@link FragmentManager#popBackStack()},无法在多页面中实现返回效果，
  * 其他情况请使用{@link FragmentNavigator}，它依赖{@link FragmentManager}的返回堆栈，实现了实例复用。
+ *
+ * 注：copy from {@link FragmentNavigator}
+ *
+ * @
  */
-@Navigator.Name("state_fragment")
-public class FragmentStateNavigator extends Navigator<FragmentNavigator.Destination> {
+@Navigator.Name("fragment_tab")
+public class FragmentTabNavigator extends Navigator<FragmentNavigator.Destination> {
     private static final String TAG = "FragmentNavigator";
-    private static final String KEY_BACK_STACK_IDS = "androidx-nav-fragment:navigator:backStackIds";
+    private static final String KEY_BACK_STACK_IDS = "androidx-nav-fragment-tab:navigator:backStackIds";
+
+    public static final String FLAG_FRAGMENT_SINGLETON = "FLAG_FRAGMENT_SINGLETON";
 
     private final Context mContext;
     private final FragmentManager mFragmentManager;
     private final int mContainerId;
     private ArrayDeque<Integer> mBackStack = new ArrayDeque<>();
+    private LinkedHashMap<String, Fragment> mSingletonFragment = new LinkedHashMap<>();
 
-    public FragmentStateNavigator(@NonNull Context context, @NonNull FragmentManager manager,
-                                  int containerId) {
+    public FragmentTabNavigator(@NonNull Context context, @NonNull FragmentManager manager,
+                                int containerId) {
         mContext = context;
         mFragmentManager = manager;
         mContainerId = containerId;
@@ -132,8 +146,21 @@ public class FragmentStateNavigator extends Navigator<FragmentNavigator.Destinat
         if (className.charAt(0) == '.') {
             className = mContext.getPackageName() + className;
         }
-        final Fragment frag = instantiateFragment(mContext, mFragmentManager,
-                className, args);
+        final Fragment frag;
+
+        boolean isSingleton = false;
+        if (args != null) {
+            isSingleton = args.getBoolean(FLAG_FRAGMENT_SINGLETON, false);
+        }
+        int destinationId = destination.getId();
+        String tag = Integer.toHexString(destinationId);
+
+        if (isSingleton && mSingletonFragment.containsKey(tag)) {
+            frag = mSingletonFragment.get(tag);
+        } else {
+            frag = instantiateFragment(mContext, mFragmentManager,
+                    className, args);
+        }
         frag.setArguments(args);
         final FragmentTransaction ft = mFragmentManager.beginTransaction();
 
@@ -149,7 +176,19 @@ public class FragmentStateNavigator extends Navigator<FragmentNavigator.Destinat
             ft.setCustomAnimations(enterAnim, exitAnim, popEnterAnim, popExitAnim);
         }
 
-        ft.replace(mContainerId, frag);
+        Fragment primaryNavigationFragment = mFragmentManager.getPrimaryNavigationFragment();
+        if (primaryNavigationFragment != null)
+            if (mSingletonFragment.containsValue(primaryNavigationFragment)) {
+                ft.detach(primaryNavigationFragment);
+            } else {
+                ft.remove(primaryNavigationFragment);
+            }
+        if (isSingleton && mSingletonFragment.containsValue(frag)) {
+            ft.attach(frag);
+        } else {
+            ft.add(mContainerId, frag, tag);
+        }
+//        ft.replace(mContainerId, frag);
         ft.setPrimaryNavigationFragment(frag);
 
         final @IdRes int destId = destination.getId();
@@ -162,23 +201,28 @@ public class FragmentStateNavigator extends Navigator<FragmentNavigator.Destinat
         boolean isAdded;
         if (initialNavigation) {
             isAdded = true;
-        } else if (isSingleTopReplacement) {
-            // Single Top means we only want one instance on the back stack
-            if (mBackStack.size() > 1) {
-                // If the Fragment to be replaced is on the FragmentManager's
-                // back stack, a simple replace() isn't enough so we
-                // remove it from the back stack and put our replacement
-                // on the back stack in its place
-                mFragmentManager.popBackStack(
-                        generateBackStackName(mBackStack.size(), mBackStack.peekLast()),
-                        FragmentManager.POP_BACK_STACK_INCLUSIVE);
-                ft.addToBackStack(generateBackStackName(mBackStack.size(), destId));
+        } else if (!isSingleton) {
+            if (isSingleTopReplacement) {
+                // Single Top means we only want one instance on the back stack
+                if (mBackStack.size() > 1) {
+                    // If the Fragment to be replaced is on the FragmentManager's
+                    // back stack, a simple replace() isn't enough so we
+                    // remove it from the back stack and put our replacement
+                    // on the back stack in its place
+                    mFragmentManager.popBackStack(
+                            generateBackStackName(mBackStack.size(), mBackStack.peekLast()),
+                            FragmentManager.POP_BACK_STACK_INCLUSIVE);
+                    ft.addToBackStack(generateBackStackName(mBackStack.size(), destId));
+                }
+                isAdded = false;
+            } else {
+                ft.addToBackStack(generateBackStackName(mBackStack.size() + 1, destId));
+                isAdded = true;
             }
-            isAdded = false;
         } else {
-            ft.addToBackStack(generateBackStackName(mBackStack.size() + 1, destId));
-            isAdded = true;
+            isAdded = false;
         }
+
         if (navigatorExtras instanceof FragmentNavigator.Extras) {
             FragmentNavigator.Extras extras = (FragmentNavigator.Extras) navigatorExtras;
             for (Map.Entry<View, String> sharedElement : extras.getSharedElements().entrySet()) {
@@ -187,6 +231,10 @@ public class FragmentStateNavigator extends Navigator<FragmentNavigator.Destinat
         }
         ft.setReorderingAllowed(true);
         ft.commit();
+
+        if (isSingleton) {
+            mSingletonFragment.put(tag, frag);
+        }
         // The commit succeeded, update our view of the world
         if (isAdded) {
             mBackStack.add(destId);
@@ -206,6 +254,12 @@ public class FragmentStateNavigator extends Navigator<FragmentNavigator.Destinat
             backStack[index++] = id;
         }
         b.putIntArray(KEY_BACK_STACK_IDS, backStack);
+        Bundle fragmentState = new Bundle();
+        for (Map.Entry<String, Fragment> fragmentEntry : mSingletonFragment.entrySet()) {
+            Fragment.SavedState savedState = mFragmentManager.saveFragmentInstanceState(fragmentEntry.getValue());
+            fragmentState.putParcelable(fragmentEntry.getKey(), savedState);
+        }
+        b.putBundle("key_singleton_fragment", fragmentState);
         return b;
     }
 
@@ -218,6 +272,13 @@ public class FragmentStateNavigator extends Navigator<FragmentNavigator.Destinat
                 for (int destId : backStack) {
                     mBackStack.add(destId);
                 }
+            }
+            Bundle savedStateBundle = savedState.getBundle("key_singleton_fragment");
+            Set<String> strings = savedStateBundle.keySet();
+            for (String tag : strings) {
+                Log.d(TAG, "onRestoreState() called with: tag = [" + tag + "]");
+                Fragment fragment = mFragmentManager.findFragmentByTag(tag);
+                mSingletonFragment.put(tag,fragment);
             }
         }
     }

@@ -36,6 +36,10 @@ public class HomeFragment extends Fragment {
     private String hexString;
     private String format;
 
+    public HomeFragment() {
+        Log.d(TAG, "HomeFragment() called");
+    }
+
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
         Log.d(TAG, Integer.toHexString(System.identityHashCode(this)) + " " + "onCreateView() called with: inflater = [" + inflater + "], container = [" + container + "], savedInstanceState = [" + savedInstanceState + "]");
@@ -53,14 +57,14 @@ public class HomeFragment extends Fragment {
             }
         });
 
-        if (savedInstanceState == null) {
-            hexString = Integer.toHexString(System.identityHashCode(this));
-            format = sdf.format(new Date());
+        if (savedInstanceState != null) {
+            hexString = savedInstanceState.getString("hexString");
+            format = savedInstanceState.getString("format");
         }
 
         if (hexString == null) {
-            hexString = savedInstanceState.getString("hexString");
-            format = savedInstanceState.getString("format");
+            hexString = Integer.toHexString(System.identityHashCode(this));
+            format = sdf.format(new Date());
         }
 
         binding.state.setText("Create at " + format + "\n instance id " + hexString);
