@@ -46,6 +46,32 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/text" />
+
+        <com.saicmotor.sc.myapplication.ui.PieChart
+            android:id="@+id/waveProgressView"
+            android:layout_width="match_parent"
+            android:layout_height="220dp"
+            android:background="@color/blue_50"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:animTime="1.5"
+            app:backgroundColor="#fafafa"
+            app:backgroundRingColor="#fafafa"
+            app:bold="15dp"
+            app:foregroundRingColor="@color/blue_100"
+            app:foregroundRingColorStart="-90"
+            app:foregroundRingEndColor="@color/blue_700"
+            app:progress="0"
+            app:progressColor="#ff8e05"
+            app:progressSize="37sp"
+            app:title="CPU占用"
+            app:titleSize="12sp"
+            app:total="100"
+            app:unitText="%"
+            app:unitTextSize="20sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/state" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -16,12 +16,16 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.github.mikephil.charting.data.PieEntry;
+import com.saicmotor.sc.myapplication.R;
 import com.saicmotor.sc.myapplication.databinding.FragmentHomeBinding;
 
 import org.jetbrains.annotations.NotNull;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 public class HomeFragment extends Fragment {
 
@@ -68,6 +72,34 @@ public class HomeFragment extends Fragment {
         }
 
         binding.state.setText("Create at " + format + "\n state " + hexString);
+
+        TripData tripDetail = new TripData();
+        tripDetail.setSpeed0(10);
+        tripDetail.setSpeed130(10);
+        tripDetail.setSpeed3160(25);
+        tripDetail.setSpeed6180(40);
+        tripDetail.setSpeed81100(15);
+        tripDetail.setSpeed100(5);
+
+        ArrayList<PieEntry> entries = new ArrayList<>();
+
+        entries.add(new PieEntry(new Double(tripDetail.getSpeed0()).floatValue(), "Idle speed"));
+        entries.add(new PieEntry(new Double(tripDetail.getSpeed130()).floatValue(), "1-30km/h"));
+        entries.add(new PieEntry(new Double(tripDetail.getSpeed3160()).floatValue(), "31-60km/h"));
+        entries.add(new PieEntry(new Double(tripDetail.getSpeed6180()).floatValue(), "61-80km/h"));
+        entries.add(new PieEntry(new Double(tripDetail.getSpeed81100()).floatValue(), "81-100km/h"));
+        entries.add(new PieEntry(new Double(tripDetail.getSpeed100()).floatValue(), ">100km/h"));
+        // add a lot of colors
+
+        ArrayList<Integer> colors = new ArrayList<>();
+        colors.add(getResources().getColor(R.color.map_vehicle_state_speed0));
+        colors.add(getResources().getColor(R.color.map_vehicle_state_speed1));
+        colors.add(getResources().getColor(R.color.map_vehicle_state_speed2));
+        colors.add(getResources().getColor(R.color.map_vehicle_state_speed3));
+        colors.add(getResources().getColor(R.color.map_vehicle_state_speed4));
+        colors.add(getResources().getColor(R.color.map_vehicle_state_speed5));
+
+        binding.waveProgressView.setData(entries,colors);
         return root;
     }
 
