@@ -6,6 +6,7 @@ import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Region;
@@ -20,12 +21,12 @@ import android.view.animation.AnimationUtils;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.Nullable;
+import androidx.core.util.Pair;
 import androidx.core.view.ViewCompat;
 
 import com.github.mikephil.charting.data.PieEntry;
 import com.saicmotor.sc.myapplication.R;
 import com.saicmotor.sc.myapplication.ScreenUtil;
-
 
 import java.util.ArrayList;
 
@@ -93,6 +94,14 @@ public class PieChart extends View {
     private float[] mSweepAngles;
     private float[] mPercents;
     private float[] mStrokeWidths;
+    private ArrayList<Integer> mColors;
+    private int color;
+    private int mCentX;
+    private int mCentY;
+    private Region mPieRegion;
+    private Region[] mRegions;
+    private Region mAllRegion;
+    private int mNearDip;
 
 
     public void setForegroundColor(@ColorInt int foregroundColor) {
@@ -173,8 +182,8 @@ public class PieChart extends View {
 
         mPaint = new Paint(paints);
         mPaint.setStyle(Paint.Style.STROKE);
-        mPaint.setStrokeWidth(mBold);
-//        mPaint.setColor(mForegroundColor);
+        mPaint.setStrokeWidth(1);
+        mPaint.setColor(mForegroundColor);
 
         mPaintStartCircle = new Paint(paints);
         mPaintStartCircle.setColor(getResources().getColor(R.color.red_900));
@@ -207,6 +216,8 @@ public class PieChart extends View {
         setLayerType(View.LAYER_TYPE_SOFTWARE, null);
 
         setForegroundColor(mForegroundColor, mForegroundEndColor);
+
+        mNearDip = 15;
     }
 
     @Override
@@ -247,8 +258,8 @@ public class PieChart extends View {
 //        measuredWidth = mDiameter + getPaddingLeft() + getPaddingRight();
 //        measuredHeight = mDiameter + getPaddingTop() + getPaddingBottom();
 
-        int centX = (measuredWidth - getPaddingLeft() - getPaddingRight()) / 2 + getPaddingLeft();
-        int centY = (measuredHeight - getPaddingTop() - getPaddingBottom()) / 2 + getPaddingTop();
+        mCentX = (measuredWidth - getPaddingLeft() - getPaddingRight()) / 2 + getPaddingLeft();
+        mCentY = (measuredHeight - getPaddingTop() - getPaddingBottom()) / 2 + getPaddingTop();
 
         mDiameter = mDiameter - 40;
         if (DEBUG)
@@ -258,8 +269,10 @@ public class PieChart extends View {
         float r = mDiameter / 2;
         mBold = r / 2F;
         r = r - mBold / 2;
-        mOval.set(centX - r, centY - r, centX + r, centY + r);
+        mOval.set(mCentX - r, mCentY - r, mCentX + r, mCentY + r);
         mDiameter = (int) (mOval.right - mOval.left);
+
+        prepareData(mEntries, mColors);
     }
 
     private void setSweepGradient() {
@@ -287,6 +300,63 @@ public class PieChart extends View {
         return (int) (dpValue * scale + 0.5f);
     }
 
+    private void prepareData(ArrayList<PieEntry> entries, ArrayList<Integer> colors) {
+        int size = entries.size();
+        if (size != colors.size()) {
+            throw new UnsupportedOperationException("The entries size must be the same as the colors size");
+        }
+        int d = this.mDiameter;
+        float count = 0;
+        for (PieEntry entry : entries) {
+            float value = entry.getValue();
+            count = count + value;
+        }
+        mPercents = new float[size];
+        for (int i = 0; i < size; i++) {
+            PieEntry entry = entries.get(i);
+            float percentage = entry.getValue() * 100f / count;
+            mPercents[i] = percentage;
+        }
+        float maxPercent = 0;
+        for (float percent : mPercents) {
+            if (Double.compare(percent, maxPercent) > 0) {
+                maxPercent = percent;
+            }
+        }
+
+        float minPercent = 0;
+        for (float percent : mPercents) {
+            if (Double.compare(percent, minPercent) < 0) {
+                minPercent = percent;
+            }
+        }
+        mSweepAngles = new float[size];
+        for (int i = 0; i < mPercents.length; i++) {
+            mSweepAngles[i] = 360 * mPercents[i] / 100;
+        }
+
+        float r = d / 2;
+        float maxStrokeWidth = r / 2F;
+        float minStrokeWidth = maxStrokeWidth / 5;
+        mStrokeWidths = new float[size];
+        for (int i = 0; i < mPercents.length; i++) {
+            float percent = mPercents[i];
+            mStrokeWidths[i] = (maxStrokeWidth - minStrokeWidth) * (percent - minPercent) / (maxPercent - minPercent) + minStrokeWidth;
+        }
+        Paint paints = new Paint();
+        paints.setAntiAlias(true);
+        paints.setStyle(Paint.Style.FILL);
+        mPaints = new Paint[size];
+        for (int i = 0; i < mStrokeWidths.length; i++) {
+            Paint paint = new Paint(paints);
+            paint.setStyle(Paint.Style.STROKE);
+            float strokeWidth = mStrokeWidths[i];
+            paint.setStrokeWidth(strokeWidth);
+            paint.setColor(colors.get(i));
+            mPaints[i] = paint;
+        }
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
 
@@ -301,10 +371,9 @@ public class PieChart extends View {
         int centerColor = 0xFFededed;
         mBgPaints.setShadowLayer(10, 0, 2, centerColor);
 
-        canvas.drawCircle(centerX, centerY, mDiameter / 2F, mBgPaints);
-
-        canvas.drawArc(mOval, 0, 360, false, mBackPaints);
-/*
+//        canvas.drawCircle(centerX, centerY, mDiameter / 2F, mBgPaints);
+//
+//        canvas.drawArc(mOval, 0, 360, false, mBackPaints);
 
         // 绘制圆环
         if (mSweepAngles != null && mSweepAngles.length > 0) {
@@ -317,7 +386,7 @@ public class PieChart extends View {
                 Log.d(TAG, "onDraw() called with: startDegrees = [" + startDegrees + "]");
             }
         }
-*/
+
 
         if (DEBUG) {
             //绘制基线圆环（测试参考线）
@@ -356,9 +425,9 @@ public class PieChart extends View {
                 int j = fontMetricsInt.descent + fontMetricsInt.ascent;
                 float y2 = y - j / 2;
                 if (DEBUG)
-                    canvas.drawLine(0, y, canvas.getWidth(), y, mPaintStartCircle);
+//                    canvas.drawLine(0, y, canvas.getWidth(), y, mPaintStartCircle);
 
-                canvas.drawText(text, x, y2, textPaint);
+                    canvas.drawText(text, x, y2, textPaint);
 
                 if (DEBUG)
                     canvas.drawCircle(x, y, 4, mPaintStartCircle);
@@ -367,6 +436,9 @@ public class PieChart extends View {
                 Log.d(TAG, "onDraw() called with: startDegrees = [" + startDegrees + "]");
             }
         }
+
+
+        drawMy(canvas);
 
         // 绘制图例折线
         if (mSweepAngles != null && mSweepAngles.length > 0) {
@@ -388,113 +460,372 @@ public class PieChart extends View {
                     canvas.drawCircle(x, y, 4, mPaintStartCircle);
 
                 PieEntry pieEntry = mEntries.get(i);
-                String label = pieEntry.getLabel();
+
+                TextPaint textPaint = new TextPaint();
+                textPaint.setColor(mColors.get(i));
+                textPaint.setTextAlign(Paint.Align.CENTER);
+                textPaint.setTextSize(ScreenUtil.sp2px(getContext(), 14));
+                textPaint.setTypeface(Typeface.MONOSPACE);
+                textPaint.setAntiAlias(true);
+                Rect rect = new Rect();
+                String text = pieEntry.getLabel();
+                textPaint.getTextBounds(text, 0, text.length(), rect);
+
+                Paint paint = new Paint();
+                paint.setColor(getResources().getColor(R.color.black));
+                paint.setStrokeWidth(2);
+                paint.setStyle(Paint.Style.FILL);
+
+                int textWidth = rect.left - rect.right;
+                int textHeight = rect.top - rect.bottom;
+
+                RectF textRectF = new RectF(x + textWidth / 2, y + textHeight / 2, x - textWidth / 2, y - textHeight / 2);
+                Rect textRect = new Rect();
+                textRectF.round(textRect);
+                Log.d(TAG, "onDraw() called with: i = [" + i + "]");
+                textRect = computeTextXY(textRect, mPieRegion, canvas);
+
+                if (DEBUG)
+                    canvas.drawRect(textRect, mPaint);
+
+                canvas.drawText(text, textRect.centerX(), textRect.centerY() - textHeight / 2, textPaint);
+
 
                 startDegrees = startDegrees + sweepAngle;
                 Log.d(TAG, "onDraw() called with: startDegrees = [" + startDegrees + "]");
 
-                //设置一个目标正方形框。这个边长是内弧的直径。中心点即为圆心
-                RectF baseRectf = new RectF(600, 600, 800, 800);
-
-                Path path = new Path();
-
-                //画一个弧。注意，角度的设置。这样设置，正方型的边长就是直径。方便计算。
-                path.addArc(baseRectf, -30, 60);
-
-                //向外扩张这个正方形。此时正方形的边长是外弧的直径。
-                baseRectf.inset(-100, -100);
-                path.arcTo(baseRectf, 30, -60); //注意角度的设置要反转一下。
-                path.close();
             }
         }
+    }
 
-        //设置画笔
-        Paint paint = new Paint();
-        paint.setColor(getResources().getColor(R.color.blue_200));
-        paint.setStyle(Paint.Style.FILL);
-        paint.setStrokeWidth(5f);//无描边，设置setStrokeWidth无效
+    private Rect computeTextXY(Rect rect, Region region, Canvas canvas) {
+        adjustRect(rect);
+        rect = tryMove(rect, region, canvas);
+        return rect;
+    }
 
+    /**
+     * 如果rect超过有效边界则回调.
+     *
+     * @param rect
+     */
+    private void adjustRect(Rect rect) {
+        int width = getWidth();
+        int height = getHeight();
+        int paddingRight = getPaddingRight();
+        int paddingLeft = getPaddingLeft();
+        int paddingTop = getPaddingTop();
+        int paddingBottom = getPaddingBottom();
 
-        //构造椭圆路径
-        Path path = new Path();
-        //构建椭圆path
-        RectF rectF = new RectF(0, 0, 200, 500);
-        path.addOval(rectF, Path.Direction.CCW);//Path.Direction.CCW:逆时针;Path.Direction.CW:顺时针
-        //构建Region
-        Region region = new Region();
-        region.set(540, 300, 980, 500);
-        //取path和region的交集
-        Region rgn = new Region();
-        rgn.setPath(path, region);
-        //绘制区域
-        drawRegion(canvas, rgn, paint);
-//        float sweepAngle = getCurrentAngle();
+        int cx = rect.centerX() < mCentX ? 1 : -1;
+        int cy = rect.centerY() < mCentY ? 1 : -1;
 
-
-/*
-
-
-
-        if (sweepAngle >= toDegrees) {
-            sweepAngle = (float) (sweepAngle - 1 * toDegrees); // 包含起始迁移一个toDegrees,缩短一个toDegrees
-            sweepAngle = sweepAngle < 0 ? 0 : sweepAngle;
-            canvas.drawArc(mOval, (float) (mStartAngle + toDegrees), sweepAngle, false, mPaint);
-            double angdeg = sweepAngle + toDegrees + mStartAngle;
-            double totalDeg = angdeg - mStartAngle;
-            double radiansEnd = Math.toRadians(angdeg);
-            if (radiansEnd >= radians) {
-                double x1End = Math.cos(radiansEnd) * (mDiameter / 2F - mActualBold);
-                double y1End = Math.sin(radiansEnd) * (mDiameter / 2F - mActualBold);
-                if (totalDeg + toDegrees > 360) {
-//                    canvas.drawCircle((float) (centerX + x1End), (float) (centerY + y1End), mBold / 2, mPaintEndCircle);
-                } else {
-//                    canvas.drawCircle((float) (centerX + x1End), (float) (centerY + y1End), mBold / 2, mPaintStartCircle);
-                }
-            }
+        boolean b1 = rect.right - width + paddingRight > -5;
+        if (b1) {
+            int i = rect.right - width + paddingRight;
+            rect.offset(-i, -cy);
+        }
+        boolean b2 = rect.left - paddingLeft < 5;
+        if (b2) {
+            int i = rect.left - paddingLeft;
+            rect.offset(-i, -cy);
+        }
+        boolean b3 = rect.top - paddingTop < 5;
+        if (b3) {
+            int i = rect.top - paddingLeft;
+            rect.offset(-cx, -i);
         }
 
-
-        boolean isAnimIn = (sweepAngle < 360 && !isComplete());
-
-//        float progress = sweepAngle * mTotle / 360;
-//        BigDecimal bg = new BigDecimal(progress);
-//        int intValue = bg.setScale(0, BigDecimal.ROUND_HALF_UP).intValue();
-//        if ((intValue / 10000) > 0) {
-//            mTextPaint.setTextSize(mProgressTextSize * 3 / 4);
-//        }
-        if (!isAnimIn) {
-//            intValue = mProgress;
+        boolean b4 = rect.bottom - height + paddingBottom > -5;
+        if (b4) {
+            int i = (height - paddingBottom) - rect.bottom;
+            rect.offset(-cx, i);
         }
-
-//        Rect rect = new Rect();
-//        String text = Integer.toString(intValue);
-//        mTextPaint.getTextBounds(text, 0, text.length(), rect);
-//        float measureText = mTextPaint.measureText(text);
-//        float x2 = centerX;
-//        Paint.FontMetricsInt fontMetricsInt = mTextPaint.getFontMetricsInt();
-//        int i = fontMetricsInt.descent + fontMetricsInt.ascent;
-//        float y2 = centerY - i / 2;
-//        canvas.drawText(text, x2, y2, mTextPaint);
-//        if (mUnitText != null) {
-//            float x = x2 + measureText / 2 + 2;
-//            if (x < preUnitX) {
-//                x = preUnitX;
-//            } else {
-//                preUnitX = x;
-//            }
-//            if (!isAnimIn) {
-//                preUnitX = 0;
-//            }
-//            canvas.drawText(mUnitText, x, y2, mUnitTextPaint);
-//        }
-//        if (mTitle != null && !mTitle.isEmpty()) {
-//            canvas.drawText(mTitle, x2, y2 - mProgressTextSize, mTitlePaint);
-//        }
-        if (isAnimIn) {
+        if ((b1 && b3) || (b1 && b4)) {
+            mDiameter--;
+            rect.right = 0;
             invalidate();
         }
 
- */
+        if ((b2 && b3) || (b2 && b4)) {
+            mDiameter--;
+            rect.right = 0;
+            invalidate();
+        }
+    }
+
+    /**
+     * 寻找合适的图例位置
+     *
+     * @param rect
+     * @param region
+     * @param canvas
+     * @return
+     */
+    private Rect tryMove(Rect rect, Region region, Canvas canvas) {
+        if (rect.right == 0) {
+            return rect;
+        }
+        Log.d(TAG, "tryMove() called with: rect = [" + rect + "], region = [" + region + "], canvas = [" + canvas + "]");
+        adjustRect(rect);
+        Region region1 = new Region();
+        region1.set(rect);
+        boolean op = region1.op(region, Region.Op.INTERSECT);
+        if (op) {
+            //  仍然与饼图有交集
+            Rect bounds = region1.getBounds();
+            int dx = (bounds.centerX() - mCentX) < 0 ? -1 : 1;
+            int dy = (bounds.centerY() - mCentY) < 0 ? -1 : 1;
+            rect.offset(dx, dy);
+            return tryMove(rect, region, canvas);
+        } else {
+            // 已经与饼图没有交集了
+            // 仍然需要保证距离Pie的最近距离不得小于特定值，
+            Point nearPoint = getNearPoint(rect);
+            Pair<Float, Float> nearPiePoint = getNearPiePoint(nearPoint);
+
+            double sqrt = Math.sqrt(Math.pow(nearPoint.x - nearPiePoint.first, 2) + Math.pow(nearPoint.y - nearPiePoint.second, 2));
+            int dip2px = ScreenUtil.dip2px(getContext(), mNearDip);
+            if (sqrt < dip2px) {
+                double v = sqrt - dip2px;
+                if (v < 2) {
+                    v = 2;
+                }
+                double radians = Math.atan2(nearPoint.y - mCentY, nearPoint.x - mCentX);
+                double x1 = Math.cos(radians) * v;
+                double y1 = Math.sin(radians) * v;
+                int x = (int) (x1 + mCentX);
+                int y = (int) (y1 + mCentY);
+                Point point = new Point(x, y);
+                int dx = (int) (point.x - nearPoint.x);
+                int dy = (int) (point.y - nearPoint.y);
+                rect.offset(dx, dy);
+                adjustRect(rect);
+                Log.d(TAG, "rect() called with: rect = [" + rect + "]");
+                return tryMove(rect, region, canvas);
+            }
+            if (DEBUG && true) {
+                Path path = new Path();
+                path.moveTo(nearPoint.x, nearPoint.y);
+                path.lineTo(nearPiePoint.first, nearPiePoint.second);
+                path.close();
+                canvas.drawPath(path, mPaint);
+                canvas.drawCircle(nearPoint.x, nearPoint.y, 4, mPaintStartCircle);
+                canvas.drawCircle(nearPiePoint.first, nearPiePoint.second, 4, mPaint);
+            }
+            return rect;
+        }
+    }
+
+    private Pair<Float, Float> getTargetPoint(Point nearPoint) {
+        int x = nearPoint.x - mCentX;
+        int y = nearPoint.y - mCentY;
+        double radians = Math.atan2(y, x);
+        double degrees = Math.toDegrees(radians);
+
+
+        float strokeWidth = getStrokeWidth(degrees);
+        float v = mDiameter / 2F + strokeWidth / 2F;
+        v = v + ScreenUtil.dip2px(getContext(), mNearDip);
+        double x1 = Math.cos(radians) * v;
+        double y1 = Math.sin(radians) * v;
+        float x2 = (float) (mCentX + x1);
+        float y2 = (float) (mCentY + y1);
+        return Pair.create(x2, y2);
+    }
+
+    private Pair<Float, Float> getNearPiePoint(Point nearPoint) {
+        int x = nearPoint.x - mCentX;
+        int y = nearPoint.y - mCentY;
+        double radians = Math.atan2(y, x);
+        double degrees = Math.toDegrees(radians);
+
+
+        float strokeWidth = getStrokeWidth(degrees);
+        float v = mDiameter / 2F + strokeWidth / 2F;
+//        v = v + ScreenUtil.dip2px(getContext(), mNearDip);
+        double x1 = Math.cos(radians) * v;
+        double y1 = Math.sin(radians) * v;
+        float x2 = (float) (mCentX + x1);
+        float y2 = (float) (mCentY + y1);
+        return Pair.create(x2, y2);
+    }
+
+    private float getStrokeWidth(double degrees) {
+        degrees = (degrees + 360) % 360;
+        if (mSweepAngles != null && mSweepAngles.length > 0) {
+            float startDegrees = mStartAngle;
+            for (int i = 0; i < mSweepAngles.length; i++) {
+                float sweepAngle = mSweepAngles[i];
+                float endDegrees = startDegrees + sweepAngle;
+                startDegrees = (startDegrees + 360) % 360;
+                endDegrees = (endDegrees + 360) % 360;
+                if (startDegrees > endDegrees) {
+                    endDegrees += 360;
+                }
+                if (degrees > startDegrees && degrees <= endDegrees) {
+                    return mStrokeWidths[i];
+                }
+                startDegrees = endDegrees;
+                Log.d(TAG, "onDraw() called with: startDegrees = [" + startDegrees + "]");
+            }
+        }
+        return 0;
+    }
+
+    private Point getNearPoint(Rect rect) {
+        boolean dx = (rect.centerX() - mCentX) < 0;
+        boolean dy = (rect.centerY() - mCentY) < 0;
+        int x, x1;
+        int y, y1;
+        if (dx) {
+            x = rect.right;
+            x1 = rect.left;
+        } else {
+            x = rect.left;
+            x1 = rect.right;
+        }
+        if (dy) {
+            y = rect.bottom;
+            y1 = rect.bottom;
+        } else {
+            y = rect.top;
+            y1 = rect.top;
+        }
+        // 只考虑X轴与圆环相交的情况
+        double degree = getDegree(new Point(x, y), new Point(x1, y1), new Point(mCentX, mCentY));
+        if (degree < 90) {
+            Point foot = getFoot(new Point(mCentX, mCentY), new Point(x, y), new Point(x1, y1));
+            return foot;
+        }
+        return new Point(x, y);
+    }
+
+
+    /**
+     * p3到p1，p2所在线段的垂足.
+     *
+     * @param p  线段外的点
+     * @param p1 线段上的点1
+     * @param p2 线段上的点1
+     * @return
+     */
+    private Point getFoot(Point p, Point p1, Point p2) {
+        Point foot = new Point();
+
+        float dx = p1.x - p2.x;
+        float dy = p1.y - p2.y;
+
+        float u = (p.x - p1.x) * dx + (p.y - p1.y) * dy;
+        u /= dx * dx + dy * dy;
+
+        foot.x = (int) (p1.x + u * dx);
+        foot.y = (int) (p1.y + u * dy);
+
+        return foot;
+    }
+
+    private Point getFoot2(Point p1, Point p2, Point p3) {
+        Point foot = new Point();
+
+        float dx = p1.x - p2.x;
+        float dy = p1.y - p2.y;
+
+        float u = (p3.x - p1.x) * dx + (p3.y - p1.y) * dy;
+        u /= dx * dx + dy * dy;
+
+        foot.x = (int) (p1.x + u * dx);
+        foot.y = (int) (p1.y + u * dy);
+
+        float d = Math.abs((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y));
+        float d1 = Math.abs((p1.x - foot.x) * (p1.x - foot.x) + (p1.y - foot.y) * (p1.y - foot.y));
+        float d2 = Math.abs((p2.x - foot.x) * (p2.x - foot.x) + (p2.y - foot.y) * (p2.y - foot.y));
+
+        if (d1 > d || d2 > d) {
+            if (d1 > d2) return p2;
+            else return p1;
+        }
+
+        return foot;
+    }
+
+
+    /**
+     * 通过三点坐标计算对应顶点的角度.
+     *
+     * @param p  顶点
+     * @param p1
+     * @param p2
+     * @return
+     */
+    private double getDegree(Point p, Point p1, Point p2) {
+        //向量的点乘
+        long vector = (p1.x - p.x) * (p2.x - p.x) * 1l + (p1.y - p.y) * (p2.y - p.y);
+        //向量的模乘
+        long i = Math.abs((p1.x - p.x) * (p1.x - p.x)) + Math.abs((p1.y - p.y) * (p1.y - p.y));
+        long i1 = Math.abs((p2.x - p.x) * (p2.x - p.x)) + Math.abs((p2.y - p.y) * (p2.y - p.y));
+        double sqrt = Math.sqrt(i * i1);
+        //反余弦计算弧度
+        double radian = Math.acos(vector / sqrt);
+        //弧度转角度制
+        return Math.toDegrees(radian);
+    }
+
+    private void drawMy(Canvas canvas) {
+        mAllRegion = new Region();
+        mAllRegion.set(0, 0, getWidth(), getBottom());
+
+        color = getResources().getColor(R.color.cyan_500);
+        //设置paint
+        float startDegrees = mStartAngle;
+
+        mRegions = new Region[mSweepAngles.length];
+        for (int j = 0; j < mSweepAngles.length; j++) {
+            float sweepAngle = mSweepAngles[j];
+            float strokeWidth = mStrokeWidths[j];
+
+            int d1 = (int) (mDiameter - strokeWidth);
+            d1 = d1 / 2;
+            RectF baseRectF = new RectF(mCentX - d1, mCentY - d1, mCentX + d1, mCentY + d1);
+
+            Path path = new Path();
+            //画一个弧。注意，角度的设置。这样设置，正方型的边长就是直径。方便计算。
+            path.addArc(baseRectF, startDegrees, sweepAngle);
+
+            //向外扩张这个正方形。此时正方形的边长是外弧的直径。
+            baseRectF.inset(strokeWidth * -1, strokeWidth * -1);
+            path.arcTo(baseRectF, startDegrees + sweepAngle, sweepAngle * -1); //注意角度的设置要反转一下。
+            path.close();
+
+            //取path和region的交集
+            Region rgn = new Region();
+            rgn.setPath(path, mAllRegion);
+            Paint paint = new Paint();
+            paint.setColor(mColors.get(j));
+            paint.setStyle(Paint.Style.FILL);
+
+            mRegions[j] = rgn;
+
+            startDegrees = startDegrees + sweepAngle;
+        }
+        Paint paint = new Paint();
+        paint.setColor(color);
+        paint.setStyle(Paint.Style.FILL);
+        mPieRegion = new Region();
+        for (int i = 0; i < mRegions.length; i++) {
+            Region region1 = mRegions[i];
+            mPieRegion.op(region1, Region.Op.UNION);
+        }
+
+        Path path = new Path();
+        path.addCircle(mCentX, mCentY, mDiameter / 2, Path.Direction.CCW);
+
+        Region rgn = new Region();
+        rgn.setPath(path, mAllRegion);
+
+        mPieRegion.op(rgn, Region.Op.UNION);
+
+
     }
 
     private void drawRegion(Canvas canvas, Region region, Paint paint) {
@@ -558,62 +889,7 @@ public class PieChart extends View {
 
     public void setData(ArrayList<PieEntry> entries, ArrayList<Integer> colors) {
         this.mEntries = entries;
-        int size = entries.size();
-        if (size != colors.size()) {
-            throw new UnsupportedOperationException("The entries size must be the same as the colors size");
-        }
-        int d = this.mDiameter;
-        float count = 0;
-        for (PieEntry entry : entries) {
-            float value = entry.getValue();
-            count = count + value;
-        }
-        mPercents = new float[size];
-        for (int i = 0; i < size; i++) {
-            PieEntry entry = entries.get(i);
-            float percentage = entry.getValue() * 100f / count;
-            mPercents[i] = percentage;
-        }
-        float maxPercent = 0;
-        for (float percent : mPercents) {
-            if (Double.compare(percent, maxPercent) > 0) {
-                maxPercent = percent;
-            }
-        }
-
-        float minPercent = 0;
-        for (float percent : mPercents) {
-            if (Double.compare(percent, minPercent) < 0) {
-                minPercent = percent;
-            }
-        }
-        mSweepAngles = new float[size];
-        for (int i = 0; i < mPercents.length; i++) {
-            mSweepAngles[i] = 360 * mPercents[i] / 100;
-        }
-
-        float r = d / 2;
-        float maxStrokeWidth = r / 2F;
-        float minStrokeWidth = maxStrokeWidth / 5;
-        mStrokeWidths = new float[size];
-        for (int i = 0; i < mPercents.length; i++) {
-            float percent = mPercents[i];
-            mStrokeWidths[i] = (maxStrokeWidth - minStrokeWidth) * (percent - minPercent) / (maxPercent - minPercent) + minStrokeWidth;
-        }
-        Paint paints = new Paint();
-        paints.setAntiAlias(true);
-        paints.setStyle(Paint.Style.FILL);
-        mPaints = new Paint[size];
-        for (int i = 0; i < mStrokeWidths.length; i++) {
-            Paint paint = new Paint(paints);
-            paint.setStyle(Paint.Style.STROKE);
-            float strokeWidth = mStrokeWidths[i];
-            paint.setStrokeWidth(strokeWidth);
-            paint.setColor(colors.get(i));
-            mPaints[i] = paint;
-        }
-        invalidate();
-        Log.d(TAG, "setData() called with: entries = [" + entries + "], colors = [" + colors + "]");
-
+        this.mColors = colors;
+        requestLayout();
     }
 }
