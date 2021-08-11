@@ -561,6 +561,51 @@ public class PieChart extends View {
             }
         }
 
+        boolean invalidate = isInvalidate(canvas);
+
+        // 绘制图例折线
+        if (mSweepAngles != null && mSweepAngles.length > 0) {
+            float startDegrees = 0;
+            for (int i = 0; i < mSweepAngles.length; i++) {
+                float sweepAngle = mSweepAngles[i];
+                float strokeWidth = mStrokeWidths[i];
+
+                float v = mStartAngle + startDegrees + sweepAngle / 2;
+
+                double radians = Math.toRadians(v);
+                double x1 = Math.cos(radians) * (mDiameter / 2F + strokeWidth / 2F);
+                double y1 = Math.sin(radians) * (mDiameter / 2F + strokeWidth / 2F);
+                float x = (float) (mCentX + x1);
+                float y = (float) (mCentY + y1);
+
+                // 辅助点，标明折线起始位置
+                if (DEBUG)
+                    canvas.drawCircle(x, y, 4, mPaintStartCircle);
+
+                Region textRegion = mTextRegions[i];
+                if (DEBUG) {
+//                    drawRegion(canvas, textRegion, mPaint);
+                }
+                int height = mTextHeight[i];
+                Rect textRect = textRegion.getBounds();
+
+                if (DEBUG) {
+                    canvas.drawRect(textRect, mPaint);
+                }
+
+                String text = mEntries.get(i).getLabel();
+                canvas.drawText(text, textRect.centerX(), textRect.centerY() + height / 2, mTextPaints[i]);
+
+                startDegrees = startDegrees + sweepAngle;
+            }
+        }
+        if (invalidate) {
+            invalidate();
+        }
+
+    }
+
+    private boolean isInvalidate(Canvas canvas) {
         boolean invalidate = false;
         for (int i = 0; i < mTextRegions.length; i++) {
             computeTextXY(mTextRegions[i], mPieRegion);
@@ -616,47 +661,7 @@ public class PieChart extends View {
                 }
             }
         }
-
-        // 绘制图例折线
-        if (mSweepAngles != null && mSweepAngles.length > 0) {
-            float startDegrees = 0;
-            for (int i = 0; i < mSweepAngles.length; i++) {
-                float sweepAngle = mSweepAngles[i];
-                float strokeWidth = mStrokeWidths[i];
-
-                float v = mStartAngle + startDegrees + sweepAngle / 2;
-
-                double radians = Math.toRadians(v);
-                double x1 = Math.cos(radians) * (mDiameter / 2F + strokeWidth / 2F);
-                double y1 = Math.sin(radians) * (mDiameter / 2F + strokeWidth / 2F);
-                float x = (float) (mCentX + x1);
-                float y = (float) (mCentY + y1);
-
-                // 辅助点，标明折线起始位置
-                if (DEBUG)
-                    canvas.drawCircle(x, y, 4, mPaintStartCircle);
-
-                Region textRegion = mTextRegions[i];
-                if (DEBUG) {
-//                    drawRegion(canvas, textRegion, mPaint);
-                }
-                int height = mTextHeight[i];
-                Rect textRect = textRegion.getBounds();
-
-                if (DEBUG) {
-                    canvas.drawRect(textRect, mPaint);
-                }
-
-                String text = mEntries.get(i).getLabel();
-                canvas.drawText(text, textRect.centerX(), textRect.centerY() + height / 2, mTextPaints[i]);
-
-                startDegrees = startDegrees + sweepAngle;
-            }
-        }
-        if (invalidate) {
-            invalidate();
-        }
-
+        return invalidate;
     }
 
     private boolean translateRegion(Region region, Region intersectRegion) {
