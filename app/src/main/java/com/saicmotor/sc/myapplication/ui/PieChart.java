@@ -102,6 +102,7 @@ public class PieChart extends View {
     private Region mPieRegion;
     private Region[] mCircleRegions;
     private Region[] mTextRegions;
+    private Region[] mTextBkRegions;
     private int mNearDip;
     private Point mCentPoint;
     private TextPaint[] mTextPaints;
@@ -295,6 +296,7 @@ public class PieChart extends View {
         if (DEBUG) Log.v(TAG, "onLayout()");
         super.onLayout(changed, left, top, right, bottom);
         prepareData(mEntries, mColors);
+        prepareText();
     }
 
     /**
@@ -415,8 +417,12 @@ public class PieChart extends View {
         circleRegion.setPath(path, mAllRegion);
 
         mPieRegion.op(circleRegion, Region.Op.UNION);
+    }
 
+    private void prepareText() {
+        float startDegrees;
         mTextRegions = new Region[mCircleRegions.length];
+        mTextBkRegions = new Region[mCircleRegions.length];
         mTextPaints = new TextPaint[mCircleRegions.length];
         mTextHeight = new int[mCircleRegions.length];
         for (int i = 0; i < mColors.size(); i++) {
@@ -555,51 +561,14 @@ public class PieChart extends View {
             }
         }
 
-        // 绘制图例折线
-        if (mSweepAngles != null && mSweepAngles.length > 0) {
-            float startDegrees = 0;
-            for (int i = 0; i < mSweepAngles.length; i++) {
-                float sweepAngle = mSweepAngles[i];
-                float strokeWidth = mStrokeWidths[i];
-
-                float v = mStartAngle + startDegrees + sweepAngle / 2;
-
-                double radians = Math.toRadians(v);
-                double x1 = Math.cos(radians) * (mDiameter / 2F + strokeWidth / 2F);
-                double y1 = Math.sin(radians) * (mDiameter / 2F + strokeWidth / 2F);
-                float x = (float) (mCentX + x1);
-                float y = (float) (mCentY + y1);
-
-                // 辅助点，标明折线起始位置
-                if (DEBUG)
-                    canvas.drawCircle(x, y, 4, mPaintStartCircle);
-
-                Region textRegion = mTextRegions[i];
-                if (DEBUG) {
-//                    drawRegion(canvas, textRegion, mPaint);
-                }
-                Rect textRect = textRegion.getBounds();
-                int height = mTextHeight[i];
-                textRect = computeTextXY(textRegion, mPieRegion);
-
-                if (DEBUG) {
-                    canvas.drawRect(textRect, mPaint);
-                }
-
-                String text = mEntries.get(i).getLabel();
-                canvas.drawText(text, textRect.centerX(), textRect.centerY() + height / 2, mTextPaints[i]);
-
-                startDegrees = startDegrees + sweepAngle;
-            }
-        }
         boolean invalidate = false;
-
-        //防止交叉锁死
-        Region[] tempRegions = new Region[mTextRegions.length];
-
-        // 检查图例是否有交叉
+        for (int i = 0; i < mTextRegions.length; i++) {
+            computeTextXY(mTextRegions[i], mPieRegion);
+        }
+        // 检查图例是否有交叉,否超过边界
         for (int i = 0; i < mTextRegions.length; i++) {
             Region textRegion1 = mTextRegions[i];
+            Rect textRegion1Bounds = textRegion1.getBounds();
             for (int j = 0; j < mTextRegions.length; j++) {
                 if (i == j) {
                     continue;
@@ -607,10 +576,11 @@ public class PieChart extends View {
                     Region textRegion2 = mTextRegions[j];
                     Region region = new Region(textRegion2);
                     boolean op = region.op(textRegion1, Region.Op.INTERSECT);
+                    Rect bounds = region.getBounds();
                     if (op) {
-                        tempRegions[i] = new Region(textRegion1);
+                        boolean left = bounds.centerX() < textRegion1Bounds.centerX();
+                        boolean top = bounds.centerY() < textRegion1Bounds.centerY();
                         invalidate = translateRegion(textRegion1, region);
-                        tempRegions[j] = new Region(textRegion2);
                         boolean b = translateRegion(textRegion2, region);
                         invalidate = invalidate || b;
                     }
@@ -644,7 +614,43 @@ public class PieChart extends View {
                     textRegion1.translate(-1, 0);
                     invalidate = true;
                 }
+            }
+        }
 
+        // 绘制图例折线
+        if (mSweepAngles != null && mSweepAngles.length > 0) {
+            float startDegrees = 0;
+            for (int i = 0; i < mSweepAngles.length; i++) {
+                float sweepAngle = mSweepAngles[i];
+                float strokeWidth = mStrokeWidths[i];
+
+                float v = mStartAngle + startDegrees + sweepAngle / 2;
+
+                double radians = Math.toRadians(v);
+                double x1 = Math.cos(radians) * (mDiameter / 2F + strokeWidth / 2F);
+                double y1 = Math.sin(radians) * (mDiameter / 2F + strokeWidth / 2F);
+                float x = (float) (mCentX + x1);
+                float y = (float) (mCentY + y1);
+
+                // 辅助点，标明折线起始位置
+                if (DEBUG)
+                    canvas.drawCircle(x, y, 4, mPaintStartCircle);
+
+                Region textRegion = mTextRegions[i];
+                if (DEBUG) {
+//                    drawRegion(canvas, textRegion, mPaint);
+                }
+                int height = mTextHeight[i];
+                Rect textRect = textRegion.getBounds();
+
+                if (DEBUG) {
+                    canvas.drawRect(textRect, mPaint);
+                }
+
+                String text = mEntries.get(i).getLabel();
+                canvas.drawText(text, textRect.centerX(), textRect.centerY() + height / 2, mTextPaints[i]);
+
+                startDegrees = startDegrees + sweepAngle;
             }
         }
         if (invalidate) {
@@ -654,14 +660,14 @@ public class PieChart extends View {
     }
 
     private boolean translateRegion(Region region, Region intersectRegion) {
-        Rect topLeftRect = new Rect(0, 0, getPaddingLeft(), getPaddingTop());
-        Region topRegion = new Region(topLeftRect);
-        Rect topRightRect = new Rect(getWidth() - getPaddingRight(), 0, getWidth(), getPaddingTop());
-        Region rightRegion = new Region(topRightRect);
-        Rect bottomRightRect = new Rect(getWidth() - getPaddingRight(), getHeight() - getPaddingBottom(), getWidth(), getHeight());
-        Region leftRegion = new Region(bottomRightRect);
-        Rect bottomLeftRect = new Rect(0, getHeight() - getPaddingBottom(), getPaddingLeft(), getHeight());
-        Region bottomRegion = new Region(bottomLeftRect);
+//        Rect topLeftRect = new Rect(0, 0, getPaddingLeft(), getPaddingTop());
+//        Region topRegion = new Region(topLeftRect);
+//        Rect topRightRect = new Rect(getWidth() - getPaddingRight(), 0, getWidth(), getPaddingTop());
+//        Region rightRegion = new Region(topRightRect);
+//        Rect bottomRightRect = new Rect(getWidth() - getPaddingRight(), getHeight() - getPaddingBottom(), getWidth(), getHeight());
+//        Region leftRegion = new Region(bottomRightRect);
+//        Rect bottomLeftRect = new Rect(0, getHeight() - getPaddingBottom(), getPaddingLeft(), getHeight());
+//        Region bottomRegion = new Region(bottomLeftRect);
 
         boolean invalidate = false;
         Rect bounds = region.getBounds();
@@ -695,6 +701,7 @@ public class PieChart extends View {
         return invalidate;
     }
 
+
     /**
      * 寻找合适的图例位置，
      *
@@ -702,11 +709,12 @@ public class PieChart extends View {
      * @param region
      * @return
      */
-    private Rect computeTextXY(Region rawRegion, Region region) {
+    private void computeTextXY(Region rawRegion, Region region) {
         Region region1 = new Region(rawRegion);
         boolean op = region1.op(region, Region.Op.INTERSECT);
         Rect bounds1 = region1.getBounds();
         Point nearPoint = nearPoint(mCentPoint, bounds1);
+        Rect bounds = rawRegion.getBounds();
         if (op) {
             //  仍然与饼图有交集
             int x = nearPoint.x - mCentX;
@@ -723,60 +731,6 @@ public class PieChart extends View {
             int oY = (int) (Math.ceil(Math.abs(offsetY)) * (offsetY >= 0 ? 1 : -1));
             rawRegion.translate(oX, oY);
         }
-        return rawRegion.getBounds();
-    }
-
-    /**
-     * 如果rect超过有效边界则回调.
-     *
-     * @param rect
-     */
-    private void adjustRect(Rect rect) {
-        Log.d(TAG, "adjustRect() called with: rect = [" + rect + "]");
-        /*
-        int width = getWidth();
-        int height = getHeight();
-        int paddingRight = getPaddingRight();
-        int paddingLeft = getPaddingLeft();
-        int paddingTop = getPaddingTop();
-        int paddingBottom = getPaddingBottom();
-
-        int cx = rect.centerX() < mCentX ? 1 : -1;
-        int cy = rect.centerY() < mCentY ? 1 : -1;
-
-        boolean b1 = rect.right - width + paddingRight > -5;
-        if (b1) {
-            int i = rect.right - width + paddingRight;
-            rect.offset(-i, -cy);
-        }
-        boolean b2 = rect.left - paddingLeft < 5;
-        if (b2) {
-            int i = rect.left - paddingLeft;
-            rect.offset(-i, -cy);
-        }
-        boolean b3 = rect.top - paddingTop < 5;
-        if (b3) {
-            int i = rect.top - paddingLeft;
-            rect.offset(-cx, -i);
-        }
-
-        boolean b4 = rect.bottom - height + paddingBottom > -5;
-        if (b4) {
-            int i = (height - paddingBottom) - rect.bottom;
-            rect.offset(-cx, i);
-        }
-        if ((b1 && b3) || (b1 && b4)) {
-            mDiameter--;
-            rect.right = 0;
-            invalidate();
-        }
-
-        if ((b2 && b3) || (b2 && b4)) {
-            mDiameter--;
-            rect.right = 0;
-            invalidate();
-        }
-         */
     }
 
     private Pair<Float, Float> getTargetPoint(Point nearPoint) {
