@@ -6,7 +6,6 @@ import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Region;
@@ -19,11 +18,9 @@ import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
-import android.view.animation.AnimationUtils;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.Nullable;
-import androidx.core.util.Pair;
 import androidx.core.view.ViewCompat;
 
 import com.github.mikephil.charting.data.PieEntry;
@@ -33,8 +30,6 @@ import com.saicmotor.sc.myapplication.ScreenUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
-
-import static java.lang.Math.abs;
 
 
 public class PieChart extends View {
@@ -478,10 +473,6 @@ public class PieChart extends View {
         Log.d(TAG, "onDraw() called with: canvas ");
         // 绘制Padding参考线
         if (DEBUG) {
-//            canvas.drawLine(getPaddingLeft(), 0, getPaddingLeft(), getHeight(), mPaint);
-//            canvas.drawLine(getWidth() - getPaddingRight(), 0, getWidth() - getPaddingRight(), getHeight(), mPaint);
-//            canvas.drawLine(0, getPaddingTop(), getWidth(), getPaddingTop(), mPaint);
-//            canvas.drawLine(0, getHeight() - getPaddingBottom(), getWidth(), getHeight() - getPaddingBottom(), mPaint);
             drawRegion(canvas, mAvailableRegion, mPaint);
         }
 
@@ -544,9 +535,6 @@ public class PieChart extends View {
                 Paint.FontMetricsInt fontMetricsInt = textPaint.getFontMetricsInt();
                 int j = fontMetricsInt.descent + fontMetricsInt.ascent;
                 float y2 = y - j / 2;
-                if (DEBUG) {
-//                    canvas.drawLine(0, y, canvas.getWidth(), y, mPaintStartCircle);
-                }
                 canvas.drawText(text, x, y2, textPaint);
 
                 if (DEBUG)
@@ -589,8 +577,7 @@ public class PieChart extends View {
             }
         }
 
-        boolean invalidate = false;
-        invalidate = isInvalidate(canvas);
+        boolean invalidate = isInvalidate();
 
         if (invalidate) {
             Handler handler = new Handler(Looper.getMainLooper());
@@ -605,7 +592,7 @@ public class PieChart extends View {
 
     }
 
-    private boolean isInvalidate(Canvas canvas) {
+    private boolean isInvalidate() {
         Log.d(TAG, "isInvalidate() called with: canvas = [" + "" + "]");
         VectorF[] vectorFs = new VectorF[mTextRectF.length];
         float startDegrees = mStartAngle;
@@ -614,10 +601,6 @@ public class PieChart extends View {
 
             RectF rawRectF = mTextRectF[i];
             VectorF vectorF = new VectorF();
-
-//            // 检查图例是否超过边界
-//            Region tR0 = new Region(rect);
-//            boolean opBorder = tR0.op(mAvailableRegion, Region.Op.DIFFERENCE);
 
             PointF nearPoint = PointF.nearPoint(mCenterPoint, rawRectF);
             vectorF.setPointStart(nearPoint);
@@ -757,87 +740,6 @@ public class PieChart extends View {
         return pointF;
     }
 
-    private static int absCeil(double a) {
-        return (int) (Math.ceil(abs(a)) * (a >= 0 ? 1 : -1));
-    }
-
-    private boolean translateRegion(Region region, Region intersectRegion) {
-//        Rect topLeftRect = new Rect(0, 0, getPaddingLeft(), getPaddingTop());
-//        Region topRegion = new Region(topLeftRect);
-//        Rect topRightRect = new Rect(getWidth() - getPaddingRight(), 0, getWidth(), getPaddingTop());
-//        Region rightRegion = new Region(topRightRect);
-//        Rect bottomRightRect = new Rect(getWidth() - getPaddingRight(), getHeight() - getPaddingBottom(), getWidth(), getHeight());
-//        Region leftRegion = new Region(bottomRightRect);
-//        Rect bottomLeftRect = new Rect(0, getHeight() - getPaddingBottom(), getPaddingLeft(), getHeight());
-//        Region bottomRegion = new Region(bottomLeftRect);
-
-        boolean invalidate = false;
-        Rect bounds = region.getBounds();
-
-        boolean topLeft = bounds.contains(getPaddingLeft(), getPaddingTop());
-        boolean topRight = bounds.contains(getWidth() - getPaddingRight(), getPaddingTop());
-        boolean bottomRight = bounds.contains(getWidth() - getPaddingRight(), getHeight() - getPaddingBottom());
-        boolean bottomLeft = bounds.contains(getPaddingLeft(), getHeight() - getPaddingBottom());
-
-        if (topLeft || topRight || bottomRight || bottomLeft) {
-            Log.d(TAG, "translateRegion() called with: region = [" + region + "], intersectRegion = [" + intersectRegion + "]");
-        }
-
-        if (topLeft) {
-            region.translate(0, bounds.height() + 1);
-        } else if (bottomLeft) {
-            region.translate(0, bounds.height() * -1 - 1);
-        } else if (topRight) {
-            region.translate(0, bounds.height() + 1);
-        } else if (bottomRight) {
-            region.translate(0, bounds.height() * -1 - 1);
-        }
-        Rect bounds1 = intersectRegion.getBounds();
-        boolean b1 = bounds1.centerX() < bounds.centerX();
-        boolean b2 = bounds1.centerY() < bounds.centerY();
-        int dx = b1 ? 1 : -1;
-        int dy = b2 ? 1 : -1;
-        region.translate(dx, dy);
-        invalidate = true;
-
-        return invalidate;
-    }
-
-
-    private Pair<Float, Float> getTargetPoint(Point nearPoint) {
-        int x = nearPoint.x - mCentX;
-        int y = nearPoint.y - mCentY;
-        double radians = Math.atan2(y, x);
-        double degrees = Math.toDegrees(radians);
-
-
-        float strokeWidth = getStrokeWidth(degrees);
-        float v = mDiameter / 2F + strokeWidth / 2F;
-        v = v + ScreenUtil.dip2px(getContext(), mNearDip);
-        double x1 = Math.cos(radians) * v;
-        double y1 = Math.sin(radians) * v;
-        float x2 = (float) (mCentX + x1);
-        float y2 = (float) (mCentY + y1);
-        return Pair.create(x2, y2);
-    }
-
-    private Pair<Float, Float> getNearPiePoint(Point nearPoint) {
-        int x = nearPoint.x - mCentX;
-        int y = nearPoint.y - mCentY;
-        double radians = Math.atan2(y, x);
-        double degrees = Math.toDegrees(radians);
-
-
-        float strokeWidth = getStrokeWidth(degrees);
-        float v = mDiameter / 2F + strokeWidth / 2F;
-//        v = v + ScreenUtil.dip2px(getContext(), mNearDip);
-        double x1 = Math.cos(radians) * v;
-        double y1 = Math.sin(radians) * v;
-        float x2 = (float) (mCentX + x1);
-        float y2 = (float) (mCentY + y1);
-        return Pair.create(x2, y2);
-    }
-
     /**
      * 返回弧度对应的饼图的半径.
      *
@@ -846,7 +748,6 @@ public class PieChart extends View {
      */
     private float pieRadius(double radians) {
         double degrees = Math.toDegrees(radians);
-        float strokeWidth = getStrokeWidth(degrees);
         float radius = mDiameter / 2F + getStrokeWidth(degrees) / 2F;
         return radius;
     }
@@ -897,10 +798,6 @@ public class PieChart extends View {
         }
     }
 
-    private boolean isComplete() {
-        return mIsComplete;
-    }
-
     public void setProgress(int totle, int progress) {
         mIsComplete = false;
         mCurrentAngle = -1;
@@ -915,34 +812,6 @@ public class PieChart extends View {
         mMaxAngle = mProgress * 360 / mTotle;
         mMaxSpeed = mMaxAngle * 2 / mAnimTime;
         invalidate();
-    }
-
-    /**
-     * 获取当前需要绘制的角度.
-     *
-     * @return
-     */
-    private float getCurrentAngle() {
-        if (mCurrentAngle == -1F) {
-            mStartTime = AnimationUtils.currentAnimationTimeMillis();
-            mCurrentAngle = 0;
-        }
-        double t = (AnimationUtils.currentAnimationTimeMillis() - mStartTime) / 1000D;
-        double s = 0;
-        if (t < (mAnimTime / 2)) {
-            s = mMaxSpeed * Math.pow(t, 2) / mAnimTime;
-        } else if (t < mAnimTime) {
-            s = mMaxAngle - (mMaxSpeed * Math.pow((mAnimTime - t), 2) / mAnimTime);
-        } else {
-            s = mCurrentAngle;
-            mIsComplete = true;
-        }
-        mCurrentAngle = (float) s;
-        return mCurrentAngle;
-    }
-
-    public void setAnimTime(float mMaxAnimTime) {
-        this.mAnimTime = mMaxAnimTime;
     }
 
     public void setData(ArrayList<PieEntry> entries, ArrayList<Integer> colors) {

@@ -239,4 +239,8 @@ public class PointF {
         rectF.round(rect);
         return rect;
     }
+
+    public static int absCeil(double a) {
+        return (int) (Math.ceil(abs(a)) * (a >= 0 ? 1 : -1));
+    }
 }
