@@ -671,6 +671,12 @@ public class PieChart extends View {
                     canvas.drawCircle(pointF2.x, pointF2.y, 8, mPaintStartCircle);
 
                 pointF1 = vectorF.getCenter();
+
+                degree1 = PointF.getDegree(vectorF1, new VectorF(pointF0, pointF1));
+                if (degree1 > 70) {
+                    pointF1 = new VectorF(pointF2, pointF1).getCenter();
+                }
+
                 if (DEBUG)
                     canvas.drawCircle(pointF4.x, pointF4.y, 8, mPaintStartCircle);
                 double degrees2 = vectorF.getDegrees();
