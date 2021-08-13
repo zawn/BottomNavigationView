@@ -113,6 +113,8 @@ public class PieChart extends View {
     private TextPaint[] mTextPaints;
     private float[] mTextDegrees;
     private int mTryMoveCount;
+    private Paint paints;
+    private int mTextPadding;
 
 
     public void setForegroundColor(@ColorInt int foregroundColor) {
@@ -178,7 +180,7 @@ public class PieChart extends View {
     }
 
     private void initView() {
-        Paint paints = new Paint();
+        paints = new Paint();
         paints.setAntiAlias(true);
         paints.setStyle(Paint.Style.FILL);
 
@@ -466,7 +468,8 @@ public class PieChart extends View {
 
             mTextHeight[i] = textHeight;
 
-            int p = ScreenUtil.dip2px(getContext(), 8);
+            mTextPadding = ScreenUtil.dip2px(getContext(), 8);
+            int p = mTextPadding;
             RectF textRectF = new RectF(x + textWidth / 2 - p, y + textHeight / 2 - p, x - textWidth / 2 + p, y - textHeight / 2 + p);
             mTextRectF[i] = textRectF;
             startDegrees = startDegrees + sweepAngle;
@@ -556,7 +559,9 @@ public class PieChart extends View {
                 float sweepAngle = mSweepAngles[i];
                 float strokeWidth = mStrokeWidths[i];
 
-                float v = mStartAngle + startDegrees + sweepAngle / 2;
+                float angleStart = mStartAngle + startDegrees;
+                float angleEnd = angleStart + sweepAngle;
+                float v = angleStart + sweepAngle / 2;
 
                 double radians = Math.toRadians(v);
                 double x1 = Math.cos(radians) * (mDiameter / 2F + strokeWidth / 2F);
@@ -568,12 +573,153 @@ public class PieChart extends View {
                 if (DEBUG)
                     canvas.drawCircle(x, y, 4, mPaintStartCircle);
 
-                float height = mTextHeight[i];
+                PointF pointF0 = new PointF(x, y);
 
+                float height = mTextHeight[i];
                 RectF rectF = mTextRectF[i];
+                // 选择一个是的起始点
+                double[] degrees0 = PointF.getDegrees(mCenterPoint, rectF);
+                boolean b = degrees0[1] - degrees0[0] > 180;
+                if (b) {
+                    double v1 = degrees0[0] + 360;
+                    degrees0[0] = degrees0[1];
+                    degrees0[1] = v1;
+                }
+                degrees0[0] = formatPositive(degrees0[0]);
+                degrees0[1] = formatPositive(degrees0[1]);
+                if (degrees0[0] > degrees0[1]) {
+                    degrees0[1] = degrees0[1] + 360;
+                }
+
+                double[] degrees1 = new double[]{angleStart, angleEnd};
+                degrees1[0] = formatPositive(degrees1[0]);
+                degrees1[1] = formatPositive(degrees1[1]);
+                if (degrees1[0] > degrees1[1]) {
+                    degrees1[1] = degrees1[1] + 360;
+                }
+
+                // 寻找重合角
+                double[] degrees = new double[]{0, 0};
+                degrees[0] = Math.max(degrees0[0], degrees1[0]);
+                degrees[1] = Math.min(degrees0[1], degrees1[1]);
+
+                if (degrees[0] > degrees[1]) {
+                    double v1 = degrees[0];
+                    degrees[0] = degrees[1];
+                    degrees[1] = v1;
+                    double d;
+                    if (degrees[0] >= degrees1[1]) {
+                        d = degrees1[1] - sweepAngle / 5;
+                    } else {
+                        d = degrees1[0] + sweepAngle / 5;
+                    }
+                    pointF0 = getPiePointFByDegrees((float) d);
+                } else {
+                    float d = (float) ((degrees[0] + degrees[1]) / 2);
+                    pointF0 = getPiePointFByDegrees(d);
+                }
+
+
+                VectorF vectorF = PointF.nearLine(pointF0, rectF);
+                double degree1 = PointF.getDegree(vectorF.getPointStart(), vectorF.getPointEnd(), pointF0);
+                double degree2 = PointF.getDegree(vectorF.getPointEnd(), vectorF.getPointStart(), pointF0);
+
+
+                PointF pointF1;
+                PointF pointF2; // 最近的端点
+                if (degree1 >= degree2) {
+                    pointF2 = vectorF.getPointStart();
+                } else {
+                    pointF2 = vectorF.getPointEnd();
+                }
+                PointF[] points = PointF.fourCornerPointF(rectF);
+                int i1;
+                for (i1 = 0; i1 < points.length; i1++) {
+                    if (pointF2.equals(points[i1])) {
+                        break;
+                    }
+                }
+                int left = (i1 - 1 + 4) % 4;
+                int right = (i1 + 1) % 4;
+                VectorF vectorF1 = new VectorF(mCenterPoint, pointF0);
+                VectorF vectorF11 = new VectorF(points[left], pointF2);
+                VectorF vectorF12 = new VectorF(points[right], pointF2);
+
+                degree1 = PointF.getDegree(pointF2, pointF0, points[left]);
+                degree2 = PointF.getDegree(pointF2, pointF0, points[right]);
+                PointF pointF4;
+                if (degree1 > 90 || degree2 > 90) {
+                    if (degree1 < degree2) {
+                        pointF4 = points[left];
+                    } else {
+                        pointF4 = points[right];
+                    }
+                } else {
+                    degree1 = PointF.getDegree(vectorF1, new VectorF(pointF0, vectorF11.getCenter()));
+                    degree2 = PointF.getDegree(vectorF1, new VectorF(pointF0, vectorF12.getCenter()));
+                    if (degree1 < degree2) {
+                        pointF4 = points[left];
+                    } else {
+                        pointF4 = points[right];
+                    }
+                }
+
+
+                vectorF = new VectorF(pointF2, pointF4);
+
+                if (DEBUG)
+                    canvas.drawCircle(pointF2.x, pointF2.y, 8, mPaintStartCircle);
+
+                pointF1 = vectorF.getCenter();
+                if (DEBUG)
+                    canvas.drawCircle(pointF4.x, pointF4.y, 8, mPaintStartCircle);
+                double degrees2 = vectorF.getDegrees();
+                PointF pointF5;
+                if (degrees2 % 180 != 0) {
+                    pointF5 = new PointF((pointF1.x + pointF0.x) / 2, pointF1.y);
+                } else {
+                    pointF5 = new PointF(pointF1.x, (pointF1.y + pointF0.y) / 2);
+                }
+
+                // 纠正折线在文字内部
+                boolean contains = rectF.contains(pointF5.x, pointF5.y);
+                if (contains) {
+                    pointF5 = pointF2;
+                    PointF end = new PointF(rectF.centerX(), rectF.centerY());
+
+                    VectorF vectorF13 = new VectorF(pointF2, end);
+                    double degrees3 = vectorF13.getDegrees();
+                    double toRadians = Math.toRadians(degrees3);
+                    float x2 = (float) (Math.cos(toRadians) * mTextPadding);
+                    float y2 = (float) (Math.sin(toRadians) * mTextPadding);
+                    pointF1 = new PointF(pointF2.x + x2, pointF2.y + y2);
+                }
+                double degree = PointF.getDegree(pointF5, pointF0, pointF1);
+                if (degree < 90) {
+                    pointF5 = pointF0;
+                }
+
+                // 辅助点，标明折线起始位置
+                if (DEBUG)
+                    canvas.drawCircle(pointF1.x, pointF1.y, 4, mPaint);
                 if (DEBUG) {
                     canvas.drawRect(rectF, mPaint);
                 }
+                Paint paint = new Paint(paints);
+                paint.setStyle(Paint.Style.FILL);
+                paint.setStrokeWidth(3);
+                paint.setColor(mColors.get(i));
+                canvas.drawLine(pointF0.x, pointF0.y, pointF5.x, pointF5.y, paint);
+                canvas.drawLine(pointF5.x, pointF5.y, pointF1.x, pointF1.y, paint);
+
+                if (DEBUG) {
+//                    PointF dp0 = getPiePointFByDegrees((float) degrees[0]);
+//                    PointF dp1 = getPiePointFByDegrees((float) degrees[1]);
+//                    canvas.drawLine(dp0.x, dp0.y, mCenterPoint.x, mCenterPoint.y, paint);
+//                    canvas.drawLine(dp1.x, dp1.y, mCenterPoint.x, mCenterPoint.y, paint);
+                }
+                // 已经找好了起始点pointF0，终点pointF1，寻找一个中间点，画一条折线
+
 
                 String text = mEntries.get(i).getLabel();
                 canvas.drawText(text, rectF.centerX(), rectF.centerY() - height / 2, mTextPaints[i]);
@@ -903,6 +1049,14 @@ public class PieChart extends View {
             }
         }
         return 0;
+    }
+
+    private double formatPositive(double degrees) {
+        degrees = degrees % 360;
+        if (degrees < 0) {
+            degrees = degrees + 360;
+        }
+        return degrees;
     }
 
     private float formatPositive(float degrees) {

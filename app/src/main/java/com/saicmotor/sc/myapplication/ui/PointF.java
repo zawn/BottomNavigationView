@@ -188,27 +188,53 @@ public class PointF {
     }
 
     /**
-     * 寻找p到Rect最近的点
+     * 寻找p到Rect最近的边
      *
-     * @param p
+     * @param point
      * @param rect
      * @return
      */
-    public static PointF nearPoint(PointF p, RectF rect) {
-        PointF p1 = new PointF(rect.left, rect.top);
-        PointF p2 = new PointF(rect.right, rect.top);
-        PointF p3 = new PointF(rect.right, rect.bottom);
-        PointF p4 = new PointF(rect.left, rect.bottom);
-
+    public static VectorF nearLine(PointF point, RectF rect) {
+        PointF[] p = fourCornerPointF(rect);
         PointF[] points = new PointF[4];
-        points[0] = nearPoint(p, p1, p2);
-        points[1] = nearPoint(p, p2, p3);
-        points[2] = nearPoint(p, p3, p4);
-        points[3] = nearPoint(p, p4, p1);
+        points[0] = nearPoint(point, p[0], p[1]);
+        points[1] = nearPoint(point, p[1], p[2]);
+        points[2] = nearPoint(point, p[2], p[3]);
+        points[3] = nearPoint(point, p[3], p[0]);
 
         double[] distances = new double[4];
         for (int i = 0; i < points.length; i++) {
-            distances[i] = distance(p, points[i]);
+            distances[i] = distance(point, points[i]);
+        }
+
+        int best = 0;
+        for (int i = 0; i < distances.length; i++) {
+            double distance = distances[i];
+            if (Double.compare(distance, distances[best]) < 0) {
+                best = i;
+            }
+        }
+        return new VectorF(p[best], p[(best + 1) % 4]);
+    }
+
+    /**
+     * 寻找p到Rect最近的点
+     *
+     * @param point
+     * @param rect
+     * @return
+     */
+    public static PointF nearPoint(PointF point, RectF rect) {
+        PointF[] p = fourCornerPointF(rect);
+        PointF[] points = new PointF[4];
+        points[0] = nearPoint(point, p[0], p[1]);
+        points[1] = nearPoint(point, p[1], p[2]);
+        points[2] = nearPoint(point, p[2], p[3]);
+        points[3] = nearPoint(point, p[3], p[0]);
+
+        double[] distances = new double[4];
+        for (int i = 0; i < points.length; i++) {
+            distances[i] = distance(point, points[i]);
         }
 
         int best = 0;

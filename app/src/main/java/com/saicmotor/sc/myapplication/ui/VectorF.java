@@ -125,4 +125,8 @@ public class VectorF {
         this.pointEnd = pointEnd;
         reset();
     }
+
+    public PointF getCenter() {
+        return new PointF(pointStart.x + offset().x / 2, pointStart.y + offset().y / 2);
+    }
 }
