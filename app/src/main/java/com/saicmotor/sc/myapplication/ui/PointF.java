@@ -110,6 +110,10 @@ public class PointF {
         return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
     }
 
+    public static double getDegree(VectorF v1, VectorF v2) {
+        return getDegree(new PointF(0, 0), v1.offset(), v2.offset());
+    }
+
     /**
      * 通过三点坐标计算对应顶点的角度.
      *
@@ -118,15 +122,22 @@ public class PointF {
      * @param p2
      * @return
      */
-    public static double getDegree(Point p, Point p1, Point p2) {
+    public static double getDegree(PointF p, PointF p1, PointF p2) {
         //向量的点乘
-        long vector = (p1.x - p.x) * (p2.x - p.x) * 1l + (p1.y - p.y) * (p2.y - p.y);
+        float vector = (p1.x - p.x) * (p2.x - p.x) * 1l + (p1.y - p.y) * (p2.y - p.y);
         //向量的模乘
-        long i = abs((p1.x - p.x) * (p1.x - p.x)) + abs((p1.y - p.y) * (p1.y - p.y));
-        long i1 = abs((p2.x - p.x) * (p2.x - p.x)) + abs((p2.y - p.y) * (p2.y - p.y));
+        float i = abs((p1.x - p.x) * (p1.x - p.x)) + abs((p1.y - p.y) * (p1.y - p.y));
+        float i1 = abs((p2.x - p.x) * (p2.x - p.x)) + abs((p2.y - p.y) * (p2.y - p.y));
         double sqrt = Math.sqrt(i * i1);
         //反余弦计算弧度
-        double radian = Math.acos(vector / sqrt);
+        double a = vector / sqrt;
+        if (a > 1) {
+            a = 1;
+        }
+        if (a < -1) {
+            a = -1;
+        }
+        double radian = Math.acos(a);
         //弧度转角度制
         return Math.toDegrees(radian);
     }

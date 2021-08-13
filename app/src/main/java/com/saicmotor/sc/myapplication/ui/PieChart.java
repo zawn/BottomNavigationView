@@ -31,7 +31,11 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 
-
+/**
+ * 饼图，圆环的宽度与百分比关联.
+ *
+ * @author zhangzhenli
+ */
 public class PieChart extends View {
     private static final String TAG = "PieChart";
     private static final boolean DEBUG = true;
@@ -609,8 +613,7 @@ public class PieChart extends View {
             PointF nearPoint;
             // 不相交的时候，需要考虑不规则饼图
             nearPoint = PointF.nearPoint(mCenterPoint, rawRectF);
-            VectorF vectorCenter = new VectorF(mCenterPoint, nearPoint);
-            float degrees = (float) vectorCenter.getDegrees();
+            float degrees = (float) new VectorF(mCenterPoint, nearPoint).getDegrees();
             PointF piePointFByDegrees = getPiePointFByDegrees(degrees);
             vectorF = new VectorF(nearPoint, piePointFByDegrees);
 
@@ -624,7 +627,14 @@ public class PieChart extends View {
                     PointF pointF = getPiePointFByDegrees(sd);
                     PointF n1 = PointF.nearPoint(pointF, rawRectF);
                     VectorF vectorF1 = new VectorF(n1, pointF);
-                    arrayList.add(vectorF1);
+                    if (vectorF1.length() == 0) {
+                        arrayList.add(vectorF1);
+                    } else {
+                        double degree = PointF.getDegree(vectorF1, vectorF);
+                        if (-90 <= degree && degree <= 90) {
+                            arrayList.add(vectorF1);
+                        }
+                    }
                 }
                 sd = ed;
             }
@@ -655,9 +665,15 @@ public class PieChart extends View {
             if (length < vectorF.length() * unit && i2 >= 0) {
                 vectorF = arrayList.get(i2);
             }
-            drawVectorF(canvas, vectorF, mPaintStartCircle);
-
-
+            degrees = (float) new VectorF(mCenterPoint, vectorF.getPointEnd()).getDegrees();
+            if (DEBUG) {
+                Paint paint = new Paint();
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(2);
+                paint.setColor(getResources().getColor(R.color.blue_gray_900));
+                drawVectorF(canvas, vectorF, paint);
+            }
+            
             // 检查图例是否有与数组前后交叉交叉,否超过边界
             int left = i - 1;
             if (left < 0) {
@@ -666,13 +682,16 @@ public class PieChart extends View {
             double d1 = PointF.distance(rawRectF, mTextRectF[left]);
             int right = (i + 1) % mTextRectF.length;
             double d2 = PointF.distance(rawRectF, mTextRectF[right]);
+            boolean b = false;
             if (d1 <= 0 && d2 > 0) {
                 degrees = degrees + 0.2f;
+                b = true;
             }
             if (d2 <= 0 && d1 > 0) {
                 degrees = degrees - 0.2f;
+                b = true;
             }
-            if (d1 <= 0 || d2 <= 0) {
+            if (b) {
                 PointF pointEnd = vectorF.getPointEnd();
                 PointF piePointF = getCirclePointF(degrees, new VectorF(mCenterPoint, pointEnd).length());
                 VectorF vectorF1 = new VectorF(pointEnd, piePointF);
@@ -743,6 +762,9 @@ public class PieChart extends View {
 
     private void drawEndpoint(Canvas canvas, VectorF vectorF1, int height, int bottom, Paint paint) {
         if (vectorF1.length() > height) {
+            canvas.drawCircle(vectorF1.getPointStart().x, vectorF1.getPointStart().y, 4, paint);
+        }
+        if (vectorF1.length() == 0) {
             canvas.drawCircle(vectorF1.getPointStart().x, vectorF1.getPointStart().y, 4, paint);
         }
         float juli = (float) Math.sqrt((vectorF1.getPointEnd().x - vectorF1.getPointStart().x) * (vectorF1.getPointEnd().x - vectorF1.getPointStart().x)
