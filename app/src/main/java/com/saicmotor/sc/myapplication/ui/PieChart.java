@@ -577,7 +577,7 @@ public class PieChart extends View {
             }
         }
 
-        boolean invalidate = isInvalidate();
+        boolean invalidate = isInvalidate(canvas);
 
         if (invalidate) {
             Handler handler = new Handler(Looper.getMainLooper());
@@ -592,22 +592,70 @@ public class PieChart extends View {
 
     }
 
-    private boolean isInvalidate() {
+    private boolean isInvalidate(Canvas canvas) {
         Log.d(TAG, "isInvalidate() called with: canvas = [" + "" + "]");
         VectorF[] vectorFs = new VectorF[mTextRectF.length];
         float startDegrees = mStartAngle;
         for (int i = 0; i < mTextRectF.length; i++) {
             float endDegrees = startDegrees + mSweepAngles[i];
 
-            RectF rawRectF = mTextRectF[i];
+            RectF rawRectF = new RectF(mTextRectF[i]);
             VectorF vectorF = new VectorF();
+            // 检查与饼图是否有交集
+            Rect rect1 = PointF.toRect(rawRectF, vectorF);
+            Region tR1 = new Region(rect1);
+            boolean op = tR1.op(mPieRegion, Region.Op.INTERSECT);
 
-            PointF nearPoint = PointF.nearPoint(mCenterPoint, rawRectF);
-            vectorF.setPointStart(nearPoint);
-
+            PointF nearPoint;
+            // 不相交的时候，需要考虑不规则饼图
+            nearPoint = PointF.nearPoint(mCenterPoint, rawRectF);
             VectorF vectorCenter = new VectorF(mCenterPoint, nearPoint);
-            double degrees = vectorCenter.getDegrees();
-            double radians = vectorCenter.getRadians();
+            float degrees = (float) vectorCenter.getDegrees();
+            PointF piePointFByDegrees = getPiePointFByDegrees(degrees);
+            vectorF = new VectorF(nearPoint, piePointFByDegrees);
+
+            RectF rectF = op ? PointF.toRectF(tR1.getBounds()) : rawRectF;
+            double[] degrees1 = PointF.getDegrees(mCenterPoint, rectF);
+            float sd = mStartAngle;
+            ArrayList<VectorF> arrayList = new ArrayList<>();
+            for (int j = 0; j < mTextRectF.length; j++) {
+                float ed = sd + mSweepAngles[j];
+                if (degrees1[0] <= sd && sd <= degrees1[1]) {
+                    PointF pointF = getPiePointFByDegrees(sd);
+                    PointF n1 = PointF.nearPoint(pointF, rawRectF);
+                    VectorF vectorF1 = new VectorF(n1, pointF);
+                    arrayList.add(vectorF1);
+                }
+                sd = ed;
+            }
+            int unit = 1;
+            if (op) {
+                unit = -1;
+            }
+
+            float length = Float.MAX_VALUE * unit;
+            int i2 = -1;
+            for (int i1 = 0; i1 < arrayList.size(); i1++) {
+                VectorF vectorF1 = arrayList.get(i1);
+
+                if (DEBUG) {
+                    Paint paint = new Paint();
+                    paint.setStyle(Paint.Style.STROKE);
+                    paint.setStrokeWidth(1);
+                    paint.setColor(getResources().getColor(R.color.light_green_A700));
+                    drawVectorF(canvas, vectorF1, paint);
+                }
+
+                float length1 = vectorF1.length() * unit;
+                if (length > length1) {
+                    i2 = i1;
+                    length = length1;
+                }
+            }
+            if (length < vectorF.length() * unit && i2 >= 0) {
+                vectorF = arrayList.get(i2);
+            }
+            drawVectorF(canvas, vectorF, mPaintStartCircle);
 
 
             // 检查图例是否有与数组前后交叉交叉,否超过边界
@@ -619,18 +667,19 @@ public class PieChart extends View {
             int right = (i + 1) % mTextRectF.length;
             double d2 = PointF.distance(rawRectF, mTextRectF[right]);
             if (d1 <= 0 && d2 > 0) {
-                degrees = degrees + 0.5;
+                degrees = degrees + 0.2f;
             }
             if (d2 <= 0 && d1 > 0) {
-                degrees = degrees - 0.5;
+                degrees = degrees - 0.2f;
+            }
+            if (d1 <= 0 || d2 <= 0) {
+                PointF pointEnd = vectorF.getPointEnd();
+                PointF piePointF = getCirclePointF(degrees, new VectorF(mCenterPoint, pointEnd).length());
+                VectorF vectorF1 = new VectorF(pointEnd, piePointF);
+                vectorF.plus(vectorF1);
             }
 
-            vectorF.setPointEnd(getPiePointFByDegrees(degrees));
             boolean opBorder2 = checkOverflowBorder(rawRectF, vectorF);
-            // 再次检查与饼图是否有交集
-            Rect rect1 = PointF.toRect(rawRectF, vectorF);
-            Region tR1 = new Region(rect1);
-            boolean op = tR1.op(mPieRegion, Region.Op.INTERSECT);
             // 当前与饼图相接，而且已经触边，但是无法移动了，卡住了，查看最近的两个画布角落，选择一个图例不是最多的移动下
             if (op && opBorder2 && vectorF.length() == 0) {
                 int[] ints = new int[mTextDegrees.length];
@@ -683,6 +732,38 @@ public class PieChart extends View {
         return invalidate;
     }
 
+    private void drawVectorF(Canvas canvas, VectorF vectorF1, Paint paint) {
+        int height = 8;
+        int bottom = 8;
+        drawEndpoint(canvas, vectorF1, height, bottom, paint);
+
+        canvas.drawLine(vectorF1.getPointStart().x, vectorF1.getPointStart().y,
+                vectorF1.getPointEnd().x, vectorF1.getPointEnd().y, paint);
+    }
+
+    private void drawEndpoint(Canvas canvas, VectorF vectorF1, int height, int bottom, Paint paint) {
+        if (vectorF1.length() > height) {
+            canvas.drawCircle(vectorF1.getPointStart().x, vectorF1.getPointStart().y, 4, paint);
+        }
+        float juli = (float) Math.sqrt((vectorF1.getPointEnd().x - vectorF1.getPointStart().x) * (vectorF1.getPointEnd().x - vectorF1.getPointStart().x)
+                + (vectorF1.getPointEnd().y - vectorF1.getPointStart().y) * (vectorF1.getPointEnd().y - vectorF1.getPointStart().y));// 获取线段距离
+        float juliX = vectorF1.getPointEnd().x - vectorF1.getPointStart().x;// 有正负，不要取绝对值
+        float juliY = vectorF1.getPointEnd().y - vectorF1.getPointStart().y;// 有正负，不要取绝对值
+        float dianX = vectorF1.getPointEnd().x - (height / juli * juliX);
+        float dianY = vectorF1.getPointEnd().y - (height / juli * juliY);
+        float dian2X = vectorF1.getPointStart().x + (height / juli * juliX);
+        float dian2Y = vectorF1.getPointStart().y + (height / juli * juliY);
+        //终点的箭头
+        Path path = new Path();
+        path.moveTo(vectorF1.getPointEnd().x, vectorF1.getPointEnd().y);// 此点为三边形的起点
+        path.lineTo(dianX + (bottom / juli * juliY), dianY
+                - (bottom / juli * juliX));
+        path.lineTo(dianX - (bottom / juli * juliY), dianY
+                + (bottom / juli * juliX));
+        path.close(); // 使这些点构成封闭的三边形
+        canvas.drawPath(path, paint);
+    }
+
     private boolean checkOverflowBorder(RectF rawRectF, VectorF vectorF) {
         // 检查是否超过边界
         Rect rect2 = PointF.toRect(rawRectF, vectorF);
@@ -718,20 +799,14 @@ public class PieChart extends View {
      * @param angdeg
      * @return
      */
-    private PointF getPiePointFByDegrees(double angdeg) {
-        double radians = Math.toRadians(angdeg);
-        return getPiePointFByRadians(radians);
+    private PointF getPiePointFByDegrees(float angdeg) {
+        float pieRadius = pieRadiusByDegrees(angdeg);
+        return getCirclePointF(angdeg, pieRadius);
     }
 
-    /**
-     * 获取饼图上对应弧度的点
-     *
-     * @param radians
-     * @return
-     */
     @NotNull
-    private PointF getPiePointFByRadians(double radians) {
-        float pieRadius = pieRadius(radians);
+    private PointF getCirclePointF(float angdeg, float pieRadius) {
+        double radians = Math.toRadians(angdeg);
         double x0 = Math.cos(radians) * pieRadius;
         double y0 = Math.sin(radians) * pieRadius;
         float px = (float) (mCentX + x0);
@@ -741,33 +816,55 @@ public class PieChart extends View {
     }
 
     /**
-     * 返回弧度对应的饼图的半径.
+     * 返回角度对应的圆环的最大半径
      *
-     * @param radians 注意弧度
+     * @param degrees
      * @return
      */
-    private float pieRadius(double radians) {
-        double degrees = Math.toDegrees(radians);
-        float radius = mDiameter / 2F + getStrokeWidth(degrees) / 2F;
-        return radius;
+    private float pieRadiusByDegrees(float degrees) {
+        float v = getStrokeWidth(degrees) / 2F;
+        float v1 = mDiameter / 2F;
+        return v1 + v;
     }
 
     /**
-     * 返回角度对应的饼图换宽度.
+     * 返回角度对应的饼图最大宽度.
      *
      * @param degrees 度数
      * @return
      */
-    private float getStrokeWidth(double degrees) {
-        degrees = (degrees + 360) % 360;
+    private float getStrokeWidth(float degrees) {
+        degrees = formatPositive(degrees);
         if (mSweepAngles != null && mSweepAngles.length > 0) {
             float startDegrees = mStartAngle;
+            Float result = null;
+            ArrayList<Float> arrayList = new ArrayList<>();
             for (int i = 0; i < mSweepAngles.length; i++) {
                 float sweepAngle = mSweepAngles[i];
                 float endDegrees = startDegrees + sweepAngle;
-                startDegrees = (startDegrees + 360) % 360;
-                endDegrees = (endDegrees + 360) % 360;
+                startDegrees = (float) formatPositive(startDegrees);
+                endDegrees = (float) formatPositive(endDegrees);
+                arrayList.add(startDegrees);
+                startDegrees = endDegrees;
+            }
+            for (int i = 0; i < arrayList.size(); i++) {
+                if (Math.abs(degrees - arrayList.get(i)) < 0.01) {
+                    float strokeWidth = mStrokeWidths[i];
+                    int prev = i - 1;
+                    if (prev < 0) {
+                        prev = prev + mStrokeWidths.length;
+                    }
+                    float strokeWidthPrev = mStrokeWidths[prev];
+                    float v = strokeWidth > strokeWidthPrev ? strokeWidth : strokeWidthPrev;
+                    return v;
+                }
+            }
 
+            for (int i = 0; i < mSweepAngles.length; i++) {
+                float sweepAngle = mSweepAngles[i];
+                float endDegrees = startDegrees + sweepAngle;
+                startDegrees = (float) formatPositive(startDegrees);
+                endDegrees = (float) formatPositive(endDegrees);
                 if (startDegrees < endDegrees) {
                     if (degrees > startDegrees && degrees <= endDegrees) {
                         return mStrokeWidths[i];
@@ -784,6 +881,14 @@ public class PieChart extends View {
             }
         }
         return 0;
+    }
+
+    private float formatPositive(float degrees) {
+        degrees = degrees % 360;
+        if (degrees < 0) {
+            degrees = degrees + 360;
+        }
+        return degrees;
     }
 
 

@@ -4,6 +4,8 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.RectF;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.Objects;
 
 import static java.lang.Math.abs;
@@ -28,6 +30,45 @@ public class PointF {
     public PointF(Point src) {
         this.x = src.x;
         this.y = src.y;
+    }
+
+    @NotNull
+    public static PointF[] fourCornerPointF(RectF rawRectF) {
+        PointF[] pointFS = new PointF[4];
+        pointFS[0] = new PointF(rawRectF.left, rawRectF.top);
+        pointFS[1] = new PointF(rawRectF.right, rawRectF.top);
+        pointFS[2] = new PointF(rawRectF.right, rawRectF.bottom);
+        pointFS[3] = new PointF(rawRectF.left, rawRectF.bottom);
+        return pointFS;
+    }
+
+    /**
+     * 返回点到矩形的最小，最大夹角
+     *
+     * @param pointF
+     * @param rawRectF
+     * @return
+     */
+    public static double[] getDegrees(PointF pointF, RectF rawRectF) {
+        PointF[] p1 = fourCornerPointF(rawRectF);
+        Double min = null, max = null;
+        for (PointF point : p1) {
+            VectorF vectorF = new VectorF(pointF, point);
+            double degrees = vectorF.getDegrees();
+            if (min == null) {
+                min = degrees;
+            }
+            if (max == null) {
+                max = degrees;
+            }
+            if (min > degrees) {
+                min = degrees;
+            }
+            if (max < degrees) {
+                max = degrees;
+            }
+        }
+        return new double[]{min, max};
     }
 
 
@@ -178,9 +219,32 @@ public class PointF {
      */
     public static float distance(Rect rect1, Rect rect2) {
         double distance;
-        RectF rectF1 = new RectF(rect1.left, rect1.top, rect1.right, rect1.bottom);
-        RectF rectF2 = new RectF(rect2.left, rect2.top, rect2.right, rect2.bottom);
+        RectF rectF1 = toRectF(rect1);
+        RectF rectF2 = toRectF(rect2);
         return distance(rectF1, rectF2);
+    }
+
+
+    /**
+     * 寻找p到Rect最近的点
+     *
+     * @param p
+     * @param rect
+     * @return
+     */
+    public static PointF nearPoint(PointF p, Rect rect) {
+        return nearPoint(p, toRectF(rect));
+    }
+
+    /**
+     * 转化Rect为RectF.
+     *
+     * @param rect
+     * @return
+     */
+    @NotNull
+    public static RectF toRectF(Rect rect) {
+        return new RectF(rect.left, rect.top, rect.right, rect.bottom);
     }
 
     /**
