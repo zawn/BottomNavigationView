@@ -12,8 +12,6 @@ import android.graphics.Region;
 import android.graphics.RegionIterator;
 import android.graphics.SweepGradient;
 import android.graphics.Typeface;
-import android.os.Handler;
-import android.os.Looper;
 import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -38,7 +36,7 @@ import java.util.ArrayList;
  */
 public class PieChart extends View {
     private static final String TAG = "PieChart";
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     private static final int MaxWidth = 9999999;
 
@@ -51,6 +49,7 @@ public class PieChart extends View {
     private static final int Default_Progress_Text_Color = 0xFF4d4d4d;
     private static final int Default_Title_Color = 0xFF808080;
     private static final int Default_Width = 100;
+    public static final float TRY_MOVE_DEGREES = 0.2f;
 
 
     private TextPaint mTextPaint;
@@ -113,6 +112,7 @@ public class PieChart extends View {
     private Region[] mCircleRegions;
     private TextPaint[] mTextPaints;
     private float[] mTextDegrees;
+    private int mTryMoveCount;
 
 
     public void setForegroundColor(@ColorInt int foregroundColor) {
@@ -302,6 +302,7 @@ public class PieChart extends View {
         super.onLayout(changed, left, top, right, bottom);
         prepareData(mEntries, mColors);
         prepareText();
+        mTryMoveCount = 0;
     }
 
     /**
@@ -582,18 +583,13 @@ public class PieChart extends View {
         }
 
         boolean invalidate = isInvalidate(canvas);
-
         if (invalidate) {
-            Handler handler = new Handler(Looper.getMainLooper());
-            handler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    invalidate();
-                }
-            }, 0);
+            invalidate();
         }
+    }
 
-
+    private boolean isInvalidate() {
+        return isInvalidate(null);
     }
 
     private boolean isInvalidate(Canvas canvas) {
@@ -648,7 +644,7 @@ public class PieChart extends View {
             for (int i1 = 0; i1 < arrayList.size(); i1++) {
                 VectorF vectorF1 = arrayList.get(i1);
 
-                if (DEBUG) {
+                if (DEBUG && canvas != null) {
                     Paint paint = new Paint();
                     paint.setStyle(Paint.Style.STROKE);
                     paint.setStrokeWidth(1);
@@ -666,7 +662,7 @@ public class PieChart extends View {
                 vectorF = arrayList.get(i2);
             }
             degrees = (float) new VectorF(mCenterPoint, vectorF.getPointEnd()).getDegrees();
-            if (DEBUG) {
+            if (DEBUG && canvas != null) {
                 Paint paint = new Paint();
                 paint.setStyle(Paint.Style.STROKE);
                 paint.setStrokeWidth(2);
@@ -684,11 +680,11 @@ public class PieChart extends View {
             double d2 = PointF.distance(rawRectF, mTextRectF[right]);
             boolean b = false;
             if (d1 <= 0 && d2 > 0) {
-                degrees = degrees + 0.2f;
+                degrees = degrees + TRY_MOVE_DEGREES;
                 b = true;
             }
             if (d2 <= 0 && d1 > 0) {
-                degrees = degrees - 0.2f;
+                degrees = degrees - TRY_MOVE_DEGREES;
                 b = true;
             }
             if (b) {
@@ -747,6 +743,10 @@ public class PieChart extends View {
                 rectF.offset(vectorF.offset().x, vectorF.offset().y);
                 invalidate = true;
             }
+        }
+        mTryMoveCount++;
+        if (mTryMoveCount > 2000) {
+            return false;
         }
         return invalidate;
     }
