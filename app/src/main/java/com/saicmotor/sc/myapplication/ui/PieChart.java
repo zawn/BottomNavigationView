@@ -673,7 +673,7 @@ public class PieChart extends View {
                 paint.setColor(getResources().getColor(R.color.blue_gray_900));
                 drawVectorF(canvas, vectorF, paint);
             }
-            
+
             // 检查图例是否有与数组前后交叉交叉,否超过边界
             int left = i - 1;
             if (left < 0) {
