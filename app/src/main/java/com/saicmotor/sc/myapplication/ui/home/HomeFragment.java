@@ -73,13 +73,21 @@ public class HomeFragment extends Fragment {
 
         binding.state.setText("Create at " + format + "\n state " + hexString);
 
+//        "speed0": 0,
+//                "speed1_30": 660,
+//                "speed31_60": 1200,
+//                "speed61_80": 1740,
+//                "speed81_100": 2010,
+//                "speed100": 720,
+
+
         TripData tripDetail = new TripData();
-        tripDetail.setSpeed0(10);
-        tripDetail.setSpeed130(10);
-        tripDetail.setSpeed3160(25);
-        tripDetail.setSpeed6180(40);
-        tripDetail.setSpeed81100(15);
-        tripDetail.setSpeed100(5);
+        tripDetail.setSpeed0(300);
+        tripDetail.setSpeed130(660);
+        tripDetail.setSpeed3160(1200);
+        tripDetail.setSpeed6180(1740);
+        tripDetail.setSpeed81100(2010);
+        tripDetail.setSpeed100(900);
 
         ArrayList<PieEntry> entries = new ArrayList<>();
 

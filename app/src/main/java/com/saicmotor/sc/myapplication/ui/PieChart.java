@@ -13,11 +13,11 @@ import android.graphics.Typeface;
 import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.View;
 
 import com.github.mikephil.charting.data.PieEntry;
 import com.saicmotor.sc.myapplication.R;
-import com.saicmotor.sc.myapplication.ScreenUtil;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -30,33 +30,32 @@ import java.util.ArrayList;
  */
 public class PieChart extends View {
     private static final String TAG = "PieChart";
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
-    private static final int Default_Size = 90;
-    private static final int Default_Foreground_Color = 0xFF0797FC;
-    private static final int Default_Title_Color = 0xFF808080;
+    private static final int Default_Title_Color = 0xFF000000;
+    private static final int Default_Pie_Text_Color = 0xFFFFFFFF;
     public static final float TRY_MOVE_DEGREES = 0.2f;
 
+    private Paint mPaint;
     // 圆环边距
     private int mPiePadding;
 
-
-    private TextPaint mTextPaint;
+    // 图例文字，四周的文字
     private Paint mTitlePaint;
     private Paint mUnitTextPaint;
-    private Paint mPaint;
+    // 圆环上面的文字
+    private TextPaint mPieTextPaint;
+
     private Paint mPaintCircle;
     private RectF mOval;
 
-    private int mForegroundColor = Default_Foreground_Color;
-    private int mForegroundEndColor;
-
     // 环形直径
     private int mDiameter;
-    private float mProgressTextSize = Default_Size;
+    private float mPieTextSize;
     private int mUnitTextSize;
-    private float mTitleSize = mProgressTextSize * 7F / 20F;
-    private int mTitleColor = Default_Title_Color;
+    private float mTitleSize;
+    private int mTitleColor;
+    private final int mPieTextColor;
 
     private int mStartAngle;
     private ArrayList<PieEntry> mEntries;
@@ -75,8 +74,7 @@ public class PieChart extends View {
     private TextPaint[] mTextPaints;
     private float[] mTextDegrees;
     private int mTryMoveCount;
-    private Paint paints;
-    private int mTextPadding;
+    private int mTitlePadding;
 
     public void setForegroundColorStartAngle(int mStartAngle) {
         this.mStartAngle = mStartAngle;
@@ -85,17 +83,22 @@ public class PieChart extends View {
 
     public PieChart(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        if (attrs != null) {
-            TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.RingProgressView);
-            mUnitTextSize = a.getDimensionPixelSize(R.styleable.RingProgressView_unitTextSize, Default_Size);
-            mTitleColor = a.getColor(R.styleable.RingProgressView_titleColor, Default_Title_Color);
-            mTitleSize = a.getDimensionPixelSize(R.styleable.RingProgressView_titleSize,
-                    (int) (mProgressTextSize * 7F / 20F));
-            mStartAngle = a.getInt(R.styleable.RingProgressView_foregroundRingColorStart, 0);
-            mProgressTextSize = a.getDimensionPixelSize(R.styleable.RingProgressView_progressSize, Default_Size);
-            mForegroundColor = a.getColor(R.styleable.RingProgressView_foregroundRingColor, Default_Foreground_Color);
-            mForegroundEndColor = a.getColor(R.styleable.RingProgressView_foregroundRingEndColor, mForegroundColor);
-            mPiePadding = a.getDimensionPixelSize(R.styleable.RingProgressView_piePadding, 16);
+        TypedArray a = context.getTheme().obtainStyledAttributes(
+                attrs,
+                R.styleable.PieChart,
+                0, 0);
+        try {
+            mStartAngle = a.getInt(R.styleable.PieChart_pieStart, 0);
+            mTitleColor = a.getColor(R.styleable.PieChart_pieTextColor, Default_Title_Color);
+            mTitleSize = a.getDimensionPixelSize(R.styleable.PieChart_pieTextSize, (int) getDimensionFromSP(14));
+            mTitlePadding = a.getDimensionPixelSize(R.styleable.PieChart_pieTitlePadding, (int) getDimensionFromDP(8));
+
+            mUnitTextSize = a.getDimensionPixelSize(R.styleable.PieChart_pieUnitTextSize, (int) getDimensionFromSP(10));
+
+            mPieTextSize = a.getDimensionPixelSize(R.styleable.PieChart_pieTextSize, (int) getDimensionFromSP(10));
+            mPieTextColor = a.getColor(R.styleable.PieChart_pieTextColor, Default_Pie_Text_Color);
+            mPiePadding = a.getDimensionPixelSize(R.styleable.PieChart_piePadding, (int) getDimensionFromDP(16));
+        } finally {
             a.recycle();
         }
         initView();
@@ -109,24 +112,31 @@ public class PieChart extends View {
         this(context, null, 0);
     }
 
-    private void initView() {
-        paints = new Paint();
-        paints.setAntiAlias(true);
-        paints.setStyle(Paint.Style.FILL);
+    private float getDimensionFromSP(int value) {
+        return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, value, getResources().getDisplayMetrics());
+    }
 
-        mPaint = new Paint(paints);
+    private float getDimensionFromDP(int value) {
+        return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, getResources().getDisplayMetrics());
+    }
+
+    private void initView() {
+        mPaint = new Paint();
+        mPaint.setAntiAlias(true);
+        mPaint.setStyle(Paint.Style.FILL);
         mPaint.setStyle(Paint.Style.STROKE);
         mPaint.setStrokeWidth(1);
         mPaint.setColor(getResources().getColor(R.color.black));
 
-        mPaintCircle = new Paint(paints);
-        mPaintCircle.setColor(getResources().getColor(R.color.red_900));
+        mPaintCircle = new Paint(mPaint);
+        mPaintCircle.setColor(0xD50000);
 
-        mTextPaint = new TextPaint();
-        mTextPaint.setTextAlign(Paint.Align.CENTER);
-        mTextPaint.setTextSize(mProgressTextSize);
-        mTextPaint.setTypeface(Typeface.MONOSPACE);
-        mTextPaint.setAntiAlias(true);
+        mPieTextPaint = new TextPaint();
+        mPieTextPaint.setTextAlign(Paint.Align.CENTER);
+        mPieTextPaint.setTextSize(mPieTextSize);
+        mPieTextPaint.setTypeface(Typeface.MONOSPACE);
+        mPieTextPaint.setAntiAlias(true);
+        mPieTextPaint.setColor(mPieTextColor);
 
         mTitlePaint = new Paint();
         mTitlePaint.setColor(mTitleColor);
@@ -309,12 +319,8 @@ public class PieChart extends View {
         mTextPaints = new TextPaint[mCircleRegions.length];
         mTextHeight = new float[mCircleRegions.length];
         for (int i = 0; i < mColors.size(); i++) {
-            TextPaint textPaint = new TextPaint();
+            TextPaint textPaint = new TextPaint(mTitlePaint);
             textPaint.setColor(mColors.get(i));
-            textPaint.setTextAlign(Paint.Align.CENTER);
-            textPaint.setTextSize(ScreenUtil.sp2px(getContext(), 14));
-            textPaint.setTypeface(Typeface.MONOSPACE);
-            textPaint.setAntiAlias(true);
             mTextPaints[i] = textPaint;
         }
         mTextDegrees = new float[mSweepAngles.length];
@@ -344,8 +350,7 @@ public class PieChart extends View {
 
             mTextHeight[i] = textHeight;
 
-            mTextPadding = ScreenUtil.dip2px(getContext(), 8);
-            int p = mTextPadding;
+            int p = mTitlePadding;
             RectF textRectF = new RectF(x + textWidth / 2 - p, y + textHeight / 2 - p, x - textWidth / 2 + p, y - textHeight / 2 + p);
             mTextRectF[i] = textRectF;
             startDegrees = startDegrees + sweepAngle;
@@ -396,19 +401,14 @@ public class PieChart extends View {
                 float x = (float) (mCenterPoint.x + x1);
                 float y = (float) (mCenterPoint.y + y1);
 
-                TextPaint textPaint = new TextPaint();
-                textPaint.setColor(getResources().getColor(R.color.white));
-                textPaint.setTextAlign(Paint.Align.CENTER);
-                textPaint.setTextSize(ScreenUtil.sp2px(getContext(), 10));
-                textPaint.setTypeface(Typeface.MONOSPACE);
-                textPaint.setAntiAlias(true);
+
                 Rect rect = new Rect();
                 String text = (int) mPercents[i] + "%";
-                textPaint.getTextBounds(text, 0, text.length(), rect);
-                Paint.FontMetricsInt fontMetricsInt = textPaint.getFontMetricsInt();
+                mPieTextPaint.getTextBounds(text, 0, text.length(), rect);
+                Paint.FontMetricsInt fontMetricsInt = mPieTextPaint.getFontMetricsInt();
                 int j = fontMetricsInt.descent + fontMetricsInt.ascent;
                 float y2 = y - j / 2;
-                canvas.drawText(text, x, y2, textPaint);
+                canvas.drawText(text, x, y2, mPieTextPaint);
 
                 if (DEBUG)
                     canvas.drawCircle(x, y, 4, mPaintCircle);
@@ -561,8 +561,8 @@ public class PieChart extends View {
                     VectorF vectorF13 = new VectorF(pointF2, end);
                     double degrees3 = vectorF13.getDegrees();
                     double toRadians = Math.toRadians(degrees3);
-                    float x2 = (float) (Math.cos(toRadians) * mTextPadding);
-                    float y2 = (float) (Math.sin(toRadians) * mTextPadding);
+                    float x2 = (float) (Math.cos(toRadians) * mTitlePadding);
+                    float y2 = (float) (Math.sin(toRadians) * mTitlePadding);
                     pointF1 = new PointF(pointF2.x + x2, pointF2.y + y2);
                 }
                 double degree = PointF.getDegree(pointF5, pointF0, pointF1);
@@ -576,7 +576,7 @@ public class PieChart extends View {
                 if (DEBUG) {
                     canvas.drawRect(rectF, mPaint);
                 }
-                Paint paint = new Paint(paints);
+                Paint paint = new Paint(mPaint);
                 paint.setStyle(Paint.Style.FILL);
                 paint.setStrokeWidth(3);
                 paint.setColor(mColors.get(i));
