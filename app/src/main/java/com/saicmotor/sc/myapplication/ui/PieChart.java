@@ -36,7 +36,7 @@ import java.util.ArrayList;
  */
 public class PieChart extends View {
     private static final String TAG = "PieChart";
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
 
     private static final int MaxWidth = 9999999;
 
@@ -49,6 +49,9 @@ public class PieChart extends View {
     private static final int Default_Title_Color = 0xFF808080;
     private static final int Default_Width = 100;
     public static final float TRY_MOVE_DEGREES = 0.2f;
+
+    // 圆环边距
+    private int mPiePadding;
 
 
     private TextPaint mTextPaint;
@@ -132,6 +135,7 @@ public class PieChart extends View {
             mBold = a.getDimensionPixelSize(R.styleable.RingProgressView_bold, Default_Bold);
             mForegroundColor = a.getColor(R.styleable.RingProgressView_foregroundRingColor, Default_Foreground_Color);
             mForegroundEndColor = a.getColor(R.styleable.RingProgressView_foregroundRingEndColor, mForegroundColor);
+            mPiePadding = a.getDimensionPixelSize(R.styleable.RingProgressView_piePadding, 16);
             a.recycle();
         }
         initView();
@@ -181,6 +185,28 @@ public class PieChart extends View {
         setLayerType(View.LAYER_TYPE_SOFTWARE, null);
 
         setForegroundColor(mForegroundColor, mForegroundEndColor);
+
+        addSampleData();
+    }
+
+    private void addSampleData() {
+        ArrayList<PieEntry> entries = new ArrayList<>();
+        entries.add(new PieEntry(300F, "Idle speed"));
+        entries.add(new PieEntry(660F, "1-30km/h"));
+        entries.add(new PieEntry(1200F, "31-60km/h"));
+        entries.add(new PieEntry(1740F, "61-80km/h"));
+        entries.add(new PieEntry(2010F, "81-100km/h"));
+        entries.add(new PieEntry(900F, ">100km/h"));
+        // add a lot of colors
+        ArrayList<Integer> colors = new ArrayList<>();
+        colors.add(getResources().getColor(R.color.map_vehicle_state_speed0));
+        colors.add(getResources().getColor(R.color.map_vehicle_state_speed1));
+        colors.add(getResources().getColor(R.color.map_vehicle_state_speed2));
+        colors.add(getResources().getColor(R.color.map_vehicle_state_speed3));
+        colors.add(getResources().getColor(R.color.map_vehicle_state_speed4));
+        colors.add(getResources().getColor(R.color.map_vehicle_state_speed5));
+        mColors = colors;
+        mEntries = entries;
     }
 
     @Override
@@ -201,8 +227,8 @@ public class PieChart extends View {
         if (DEBUG)
             Log.v(TAG, "onMeasure()3 : widthSize=" + widthSize + ", heightSize=" + heightSize);
 
-        final int minWidth = dip2px(Default_Width) + getPaddingLeft() + getPaddingRight();
-        final int minHeight = dip2px(Default_Width) + getPaddingLeft() + getPaddingRight();
+        final int minWidth = getMinimumWidth() + getPaddingLeft() + getPaddingRight();
+        final int minHeight = getMinimumHeight() + getPaddingLeft() + getPaddingRight();
 
         if (DEBUG) Log.v(TAG, "onMeasure()4 :minWidth= " + minWidth + " , minHeight=" + minHeight);
         int measuredWidth = ViewCompat.resolveSizeAndState(minWidth, widthMeasureSpec, 0);
@@ -225,7 +251,7 @@ public class PieChart extends View {
         int centerY = (measuredHeight - getPaddingTop() - getPaddingBottom()) / 2 + getPaddingTop();
         mCenterPoint = new PointF(centerX, centerY);
 
-        mDiameter = mDiameter - 40;
+        mDiameter = mDiameter - mPiePadding;
         if (DEBUG)
             Log.v(TAG, "onMeasure with padding :measuredWidth= " + measuredWidth + " , measuredHeight="
                     + measuredHeight);
@@ -255,14 +281,6 @@ public class PieChart extends View {
         prepareData(mEntries, mColors);
         prepareText();
         mTryMoveCount = 0;
-    }
-
-    /**
-     * 根据手机的分辨率从 dp 的单位 转成为 px(像素)
-     */
-    private int dip2px(float dpValue) {
-        final float scale = getContext().getResources().getDisplayMetrics().density;
-        return (int) (dpValue * scale + 0.5f);
     }
 
     private void prepareData(ArrayList<PieEntry> entries, ArrayList<Integer> colors) {
@@ -670,9 +688,11 @@ public class PieChart extends View {
             }
         }
 
-        boolean invalidate = isInvalidate(canvas);
-        if (invalidate) {
-            invalidate();
+        if (!isInEditMode()) {
+            boolean invalidate = isInvalidate(canvas);
+            if (invalidate) {
+                invalidate();
+            }
         }
     }
 
