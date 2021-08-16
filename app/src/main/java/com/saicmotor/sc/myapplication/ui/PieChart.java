@@ -3,23 +3,17 @@ package com.saicmotor.sc.myapplication.ui;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
-import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Region;
 import android.graphics.RegionIterator;
-import android.graphics.SweepGradient;
 import android.graphics.Typeface;
 import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
-
-import androidx.annotation.ColorInt;
-import androidx.annotation.Nullable;
-import androidx.core.view.ViewCompat;
 
 import com.github.mikephil.charting.data.PieEntry;
 import com.saicmotor.sc.myapplication.R;
@@ -38,16 +32,9 @@ public class PieChart extends View {
     private static final String TAG = "PieChart";
     private static final boolean DEBUG = true;
 
-    private static final int MaxWidth = 9999999;
-
-    private static final float Default_Anim_Time = 1.5F;
     private static final int Default_Size = 90;
-    private static final int Default_Bold = 10;
-    private static final int Default_Background_Color = 0xFFCCCCCC;
     private static final int Default_Foreground_Color = 0xFF0797FC;
-    private static final int Default_Progress_Text_Color = 0xFF4d4d4d;
     private static final int Default_Title_Color = 0xFF808080;
-    private static final int Default_Width = 100;
     public static final float TRY_MOVE_DEGREES = 0.2f;
 
     // 圆环边距
@@ -63,7 +50,6 @@ public class PieChart extends View {
 
     private int mForegroundColor = Default_Foreground_Color;
     private int mForegroundEndColor;
-    private float mBold = Default_Bold;
 
     // 环形直径
     private int mDiameter;
@@ -73,10 +59,6 @@ public class PieChart extends View {
     private int mTitleColor = Default_Title_Color;
 
     private int mStartAngle;
-
-    private int[] colors;
-    @Nullable
-    private float[] positions;
     private ArrayList<PieEntry> mEntries;
     private Paint[] mPaints;
     private float[] mSweepAngles;
@@ -96,27 +78,6 @@ public class PieChart extends View {
     private Paint paints;
     private int mTextPadding;
 
-
-    public void setForegroundColor(@ColorInt int foregroundColor) {
-        this.mForegroundColor = foregroundColor;
-        mPaintCircle.setColor(mForegroundColor);
-    }
-
-    public void setForegroundColor(int colors[], @Nullable float positions[]) {
-        this.colors = colors;
-        this.positions = positions;
-
-        this.mForegroundColor = colors[0];
-        this.mForegroundEndColor = colors[colors.length - 1];
-
-        setSweepGradient();
-    }
-
-    public void setForegroundColor(@ColorInt int foregroundColor, @ColorInt int foregroundEndColor) {
-        int[] colors = {foregroundColor, foregroundEndColor};
-        setForegroundColor(colors, null);
-    }
-
     public void setForegroundColorStartAngle(int mStartAngle) {
         this.mStartAngle = mStartAngle;
     }
@@ -132,7 +93,6 @@ public class PieChart extends View {
                     (int) (mProgressTextSize * 7F / 20F));
             mStartAngle = a.getInt(R.styleable.RingProgressView_foregroundRingColorStart, 0);
             mProgressTextSize = a.getDimensionPixelSize(R.styleable.RingProgressView_progressSize, Default_Size);
-            mBold = a.getDimensionPixelSize(R.styleable.RingProgressView_bold, Default_Bold);
             mForegroundColor = a.getColor(R.styleable.RingProgressView_foregroundRingColor, Default_Foreground_Color);
             mForegroundEndColor = a.getColor(R.styleable.RingProgressView_foregroundRingEndColor, mForegroundColor);
             mPiePadding = a.getDimensionPixelSize(R.styleable.RingProgressView_piePadding, 16);
@@ -184,8 +144,6 @@ public class PieChart extends View {
         mOval = new RectF();
         setLayerType(View.LAYER_TYPE_SOFTWARE, null);
 
-        setForegroundColor(mForegroundColor, mForegroundEndColor);
-
         addSampleData();
     }
 
@@ -210,74 +168,27 @@ public class PieChart extends View {
     }
 
     @Override
-    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        if (DEBUG)
-            Log.v(TAG, "onMeasure()1 : widthMeasureSpec=" + widthMeasureSpec + ", heightMeasureSpec"
-                    + heightMeasureSpec);
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
 
-        int widthMode = MeasureSpec.getMode(widthMeasureSpec);
-        int heightMode = MeasureSpec.getMode(heightMeasureSpec);
-        int widthSize = MeasureSpec.getSize(widthMeasureSpec);
-        int heightSize = MeasureSpec.getSize(heightMeasureSpec);
+        float xpad = (float) (getPaddingLeft() + getPaddingRight());
+        float ypad = (float) (getPaddingTop() + getPaddingBottom());
 
-        if (DEBUG)
-            Log.v(TAG,
-                    "onMeasure()2 : widthMode=" + MeasureSpec.toString(widthMode) + ", heightMode="
-                            + MeasureSpec.toString(heightMode));
-        if (DEBUG)
-            Log.v(TAG, "onMeasure()3 : widthSize=" + widthSize + ", heightSize=" + heightSize);
+        float ww = (float) w - xpad;
+        float hh = (float) h - ypad;
 
-        final int minWidth = getMinimumWidth() + getPaddingLeft() + getPaddingRight();
-        final int minHeight = getMinimumHeight() + getPaddingLeft() + getPaddingRight();
+        // Figure out how big we can make the pie.
+        mDiameter = (int) Math.min(ww, hh);
+        mDiameter = mDiameter - mPiePadding * 2;
 
-        if (DEBUG) Log.v(TAG, "onMeasure()4 :minWidth= " + minWidth + " , minHeight=" + minHeight);
-        int measuredWidth = ViewCompat.resolveSizeAndState(minWidth, widthMeasureSpec, 0);
-        int measuredHeight = ViewCompat.resolveSizeAndState(minHeight, heightMeasureSpec, 0);
-        // Bug#Eclipse ADT 中该View包含在ScrollView中后无法预览
-        if (measuredHeight > MaxWidth) {
-            measuredHeight = 0;
-        }
-
-        if (DEBUG)
-            Log.v(TAG, "onMeasure()5 :measuredWidth= " + measuredWidth + " , measuredHeight=" + measuredHeight);
-
-        // 计算直径的最大值
-        mDiameter = Math.min((measuredWidth - getPaddingLeft() - getPaddingRight()),
-                (measuredHeight - getPaddingTop() - getPaddingBottom()));
-//        measuredWidth = mDiameter + getPaddingLeft() + getPaddingRight();
-//        measuredHeight = mDiameter + getPaddingTop() + getPaddingBottom();
-
-        int centerX = (measuredWidth - getPaddingLeft() - getPaddingRight()) / 2 + getPaddingLeft();
-        int centerY = (measuredHeight - getPaddingTop() - getPaddingBottom()) / 2 + getPaddingTop();
+        int centerX = (w - getPaddingLeft() - getPaddingRight()) / 2 + getPaddingLeft();
+        int centerY = (h - getPaddingTop() - getPaddingBottom()) / 2 + getPaddingTop();
         mCenterPoint = new PointF(centerX, centerY);
 
-        mDiameter = mDiameter - mPiePadding;
-        if (DEBUG)
-            Log.v(TAG, "onMeasure with padding :measuredWidth= " + measuredWidth + " , measuredHeight="
-                    + measuredHeight);
-        setMeasuredDimension(measuredWidth, measuredHeight);
         float r = mDiameter / 2;
-        mBold = r / 2F;
-        r = r - mBold / 2;
+        r = r - r / 4F;
         mOval.set(centerX - r, centerY - r, centerX + r, centerY + r);
         mDiameter = (int) (mOval.right - mOval.left);
-    }
 
-    private void setSweepGradient() {
-        if (mForegroundEndColor != 0) {
-            SweepGradient sweepGradient = new SweepGradient(mOval.centerX(), mOval.centerY(), colors, positions);
-            Matrix gradientMatrix = new Matrix();
-            gradientMatrix.preRotate(mStartAngle, mOval.centerX(), mOval.centerY());
-            sweepGradient.setLocalMatrix(gradientMatrix);
-            mPaint.setShader(sweepGradient);
-//            mPaintStartCircle.setShader(sweepGradient);
-        }
-    }
-
-    @Override
-    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-        if (DEBUG) Log.v(TAG, "onLayout()");
-        super.onLayout(changed, left, top, right, bottom);
         prepareData(mEntries, mColors);
         prepareText();
         mTryMoveCount = 0;
